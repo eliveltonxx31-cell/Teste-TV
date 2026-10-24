@@ -6,6 +6,9 @@
  *
  *   /api/health          só verifica a configuração (não chama o TMDB)
  *   /api/health?check=1  também testa a chave no TMDB (uma chamada a /configuration)
+ *   /api/health?assets=1 lê, pela própria publicação (env.ASSETS), o que ela contém
+ *                        em "/", "/index.html", "/assets/js/apps.js" e "/diag/".
+ *                        Mostra só status, tipo, tamanho e o <title> ou a 1ª linha.
  *
  * Resultados de "tmdb":
  *   not_checked · ok · auth_failed (TMDB recusou a chave) · http_<código> ·
@@ -13,6 +16,9 @@
  */
 const API = "https://api.themoviedb.org/3";
 const TIMEOUT_MS = 6000;
+// Identifica a versão desta função na publicação (atualizado à mão a cada mudança).
+const VERSION = "health-2-assets-probe";
+const PROBE_PATHS = ["/", "/index.html", "/assets/js/apps.js", "/diag/"];
 
 export async function onRequestGet(context) {
   const env = context.env || {};
@@ -22,6 +28,7 @@ export async function onRequestGet(context) {
 
   const out = {
     function: "ok",
+    version: VERSION,
     host: url.host,
     secret: {
       TMDB_TOKEN: token ? "present" : (raw === undefined ? "missing" : "empty"),
@@ -36,9 +43,37 @@ export async function onRequestGet(context) {
   };
 
   if (token && url.searchParams.get("check") === "1") out.tmdb = await check(token);
+  if (url.searchParams.get("assets") === "1") out.assets = await probeAssets(env, url.origin);
   return new Response(JSON.stringify(out, null, 2), {
     headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" }
   });
+}
+
+// Pergunta aos arquivos estáticos desta mesma publicação o que existe em cada caminho.
+// Se "/assets/js/apps.js" voltar como text/html com o mesmo <title> da raiz, o
+// arquivo não foi enviado no build e o Pages respondeu com a página da raiz.
+async function probeAssets(env, origin) {
+  if (!env.ASSETS || typeof env.ASSETS.fetch !== "function") return { error: "assets_binding_unavailable" };
+  const out = {};
+  for (let i = 0; i < PROBE_PATHS.length; i++) {
+    const path = PROBE_PATHS[i];
+    try {
+      const res = await env.ASSETS.fetch(new Request(origin + path));
+      const type = res.headers.get("Content-Type") || "";
+      const text = await res.text();
+      const title = /<title>([^<]*)<\/title>/i.exec(text);
+      out[path] = {
+        status: res.status,
+        type: type.split(";")[0],
+        bytes: text.length,
+        title: title ? title[1] : null,
+        firstLine: title ? null : text.split("\n")[0].slice(0, 60)
+      };
+    } catch (err) {
+      out[path] = { error: "fetch_failed" };
+    }
+  }
+  return out;
 }
 
 async function check(token) {
