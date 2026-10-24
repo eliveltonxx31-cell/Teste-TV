@@ -1,332 +1,277 @@
 /*
- * NEXUS TV · estilos da tela inicial (tema claro).
+ * NEXUS TV · estilos.
  * Alvo: Chromium 111 (navegador VIDAA). Sem CSS nesting, subgrid, popover ou color-mix.
- * Desempenho: foco e troca de imagem animam só transform e opacity. Sombras de
- * foco ficam em pseudo-elementos que só mudam de opacidade (sem repintar o cartão).
+ * Desempenho: foco, troca de imagem e "carregando" animam só transform/opacity.
+ * Sombras de foco ficam em pseudo-elementos que só mudam de opacidade.
+ * Sem backdrop-filter: o "vidro" da dock é branco translúcido sobre fundo liso.
  *
- * Escala: desenho em 1920×1080 com 1rem = 20px. A base acompanha o menor lado
+ * Escala: desenho em 1920×1080 com 1rem = 20px; a base acompanha o menor lado
  * proporcional, então tudo cabe sem rolagem em 1920×1080, 960×540 ou com a
- * moldura do navegador ocupando parte da altura.
+ * moldura do navegador.
  */
 :root {
-  --bg: #f5f5f7;
-  --bg-2: #e8e8ed;
-  --surface: #ffffff;
   --text: #1d1d1f;
   --muted: #6e6e73;
   --faint: #8e8e93;
+  --frame: #d9d9de;
+  --shadow: 0 0.15rem 0.5rem rgba(0, 0, 0, 0.06), 0 0.8rem 2rem rgba(0, 0, 0, 0.08);
+  --shadow-up: 0 0.6rem 1.2rem rgba(0, 0, 0, 0.14), 0 1.6rem 3.2rem rgba(0, 0, 0, 0.16);
   --ring: #1d1d1f;
-  --shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.06), 0 0.6rem 1.6rem rgba(0, 0, 0, 0.06);
-  --shadow-up: 0 0.6rem 1.4rem rgba(0, 0, 0, 0.12), 0 1.4rem 3rem rgba(0, 0, 0, 0.12);
   --ease: cubic-bezier(0.25, 0.7, 0.25, 1);
 }
 
 * { box-sizing: border-box; }
-
-html {
-  font-size: min(calc(100vw / 96), calc(100vh / 54));
-  background: var(--bg);
-}
-
+html { font-size: min(calc(100vw / 96), calc(100vh / 54)); background: #eeeef1; }
 body {
   margin: 0;
   min-height: 100vh;
   color: var(--text);
-  background: linear-gradient(180deg, #fbfbfd 0%, var(--bg) 45%, var(--bg-2) 100%);
+  background: linear-gradient(170deg, #f7f7f9 0%, #eeeef1 45%, #e3e4e8 100%);
   font-family: -apple-system, "SF Pro Display", "Helvetica Neue", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
 }
-
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; border: 0; background: none; padding: 0; }
 a, button { outline: none; cursor: pointer; }
+[hidden] { display: none !important; }
 
 .screen {
-  width: 96rem;
-  height: 54rem;
+  width: 96rem; height: 54rem;
   margin: 0 auto;
-  padding: 2.2rem 4.8rem 1.4rem;
-  display: flex;
-  flex-direction: column;
+  padding: 2.2rem 4.8rem 1.2rem;
+  display: flex; flex-direction: column;
 }
 
 /* ---------- cabeçalho ---------- */
-.topbar {
-  flex: 0 0 3rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+.head { flex: 0 0 5.8rem; display: flex; justify-content: space-between; align-items: flex-start; }
+.greet { margin: 0; font-size: 3.2rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+.tabs { display: flex; gap: 2.2rem; margin-top: 0.6rem; }
+.tab {
+  position: relative;
+  font-size: 1.25rem; font-weight: 500; color: var(--muted);
+  padding: 0.2rem 0;
+  transition: color 0.15s ease;
 }
-.wordmark { font-size: 1.3rem; font-weight: 600; letter-spacing: 0.42em; color: var(--text); }
-.top-right { display: flex; align-items: center; gap: 1.2rem; }
-.clock { min-width: 5rem; text-align: right; font-size: 1.6rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--muted); }
-.icon-btn {
-  width: 2.8rem; height: 2.8rem;
-  border-radius: 50%;
+.tab.is-on { color: var(--text); font-weight: 600; }
+.tab::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: -0.35rem; height: 0.16rem;
+  border-radius: 1rem; background: var(--text);
+  opacity: 0; transform: scaleX(0.4);
+  transition: opacity 0.15s ease, transform 0.18s var(--ease);
+}
+.tab:hover, .tab:focus-visible, .tab.is-focus { color: var(--text); }
+.tab:hover::after, .tab:focus-visible::after, .tab.is-focus::after, .tab.is-on::after { opacity: 1; transform: scaleX(1); }
+
+.head-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.7rem; }
+.head-btns { display: flex; gap: 0.9rem; }
+.circle {
+  width: 2.8rem; height: 2.8rem; border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 1.3rem;
-  color: var(--muted);
-  background: rgba(0, 0, 0, 0.05);
-  transition: transform 0.16s var(--ease), background-color 0.16s ease, color 0.16s ease;
+  font-size: 1.2rem; font-weight: 700; color: var(--text);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.08), inset 0 0 0 1px rgba(255, 255, 255, 0.9);
+  transition: transform 0.15s var(--ease), box-shadow 0.15s ease;
 }
-.icon-btn:hover, .icon-btn:focus-visible, .icon-btn.is-focus { color: var(--text); background: rgba(0, 0, 0, 0.12); transform: scale(1.06); }
-.icon-btn:active { transform: scale(0.95); }
-
-/* ---------- destaque + recomendações ---------- */
-.top {
-  flex: 0 0 29rem;
-  margin-top: 1.6rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 27.2rem;
-  gap: 1.6rem;
+.circle:hover, .circle:focus-visible, .circle.is-focus { transform: scale(1.08); box-shadow: 0 0 0 0.16rem var(--ring), 0 0.4rem 1rem rgba(0, 0, 0, 0.14); }
+.circle:active { transform: scale(0.95); }
+.head-meta { display: flex; align-items: center; gap: 0.5rem; font-size: 1rem; color: var(--faint); font-variant-numeric: tabular-nums; }
+.head-meta .dot { color: #b8b8bf; }
+.retry {
+  margin-left: 0.4rem; padding: 0.2rem 0.8rem; border-radius: 999px;
+  font-size: 0.95rem; font-weight: 600; color: #fff; background: var(--text);
+  transition: transform 0.15s var(--ease);
 }
+.retry:hover, .retry:focus-visible, .retry.is-focus { transform: scale(1.06); }
 
-/* Contorno de foco comum: anel fino escuro, só a opacidade muda. */
-.hero::after, .rec::after, .app-card::after {
-  content: "";
-  position: absolute;
-  inset: -0.35rem;
-  border-radius: inherit;
-  box-shadow: 0 0 0 0.2rem var(--ring);
-  opacity: 0;
-  transition: opacity 0.16s ease;
-  pointer-events: none;
-}
-/* O raio do anel acompanha o cartão com a folga do inset. */
-.hero::after { border-radius: 1.75rem; }
-.rec::after { border-radius: 1.45rem; }
-.app-card::after { border-radius: 1.55rem; }
+/* ---------- palco ---------- */
+.stage { flex: 0 0 26.4rem; margin-top: 2rem; position: relative; }
+.view-home { display: grid; grid-template-columns: 52rem 15.6rem 15.6rem; gap: 1.6rem; height: 100%; }
+.slot { min-width: 0; }
 
-.hero {
+.frame {
   position: relative;
   display: block;
-  border-radius: 1.4rem;
+  height: 22rem;
+  border-radius: 1.2rem;
+  background: var(--frame);
   box-shadow: var(--shadow);
-  background: #2a2a2e;
-}
-.hero:hover::after, .hero:focus-visible::after, .hero.is-focus::after { opacity: 1; }
-.hero:active .hero-btn, .hero.is-pressed .hero-btn { transform: scale(0.96); }
-
-/* Recorte das imagens separado do anel de foco (que fica fora da borda). */
-.hero-img, .hero-shade { border-radius: 1.4rem; }
-.hero-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.28s ease;
-}
-.hero-img.is-on { opacity: 1; }
-.hero-shade {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.25) 42%, rgba(0, 0, 0, 0) 70%),
-              linear-gradient(0deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 55%);
-}
-.hero-text {
-  position: absolute;
-  left: 3.2rem; bottom: 2.8rem;
-  max-width: 40rem;
-  color: #fff;
-  transition: opacity 0.14s ease;
-}
-.hero-text.is-fading { opacity: 0; }
-.hero-title {
-  font-size: 3.6rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.08;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.hero-blurb {
-  margin-top: 0.6rem;
-  font-size: 1.35rem;
-  line-height: 1.4;
-  color: rgba(255, 255, 255, 0.88);
-  /* Até duas linhas, com altura fixa para o botão não mudar de lugar. */
-  height: 3.8rem;
-  overflow: hidden;
-}
-.hero-cta { display: flex; align-items: center; gap: 1.2rem; margin-top: 1.2rem; }
-.hero-btn {
-  display: inline-block;
-  padding: 0.75rem 2.2rem;
-  border-radius: 999px;
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #1d1d1f;
-  background: #fff;
-  transition: transform 0.12s var(--ease);
-}
-.hero-meta { font-size: 1.1rem; color: rgba(255, 255, 255, 0.75); white-space: nowrap; }
-
-.recs {
-  display: grid;
-  grid-template-rows: 1fr 1fr;
-  gap: 1.6rem;
-  min-height: 0;
-}
-.rec {
-  position: relative;
-  display: block;
-  border-radius: 1.1rem;
-  box-shadow: var(--shadow);
-  background: #2a2a2e;
+  transform: translateZ(0);
   transition: transform 0.18s var(--ease);
 }
-.rec img {
+.layer {
   position: absolute; inset: 0;
   width: 100%; height: 100%;
   object-fit: cover;
-  border-radius: 1.1rem;
+  border-radius: 1.2rem;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
-.rec-shade {
-  position: absolute; inset: 0;
-  border-radius: 1.1rem;
-  background: linear-gradient(0deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 70%);
+.layer.is-on { opacity: 1; }
+/* Anel de foco fora da borda e sombra mais alta: só opacidade. */
+.frame::after {
+  content: ""; position: absolute; inset: -0.4rem;
+  border-radius: 1.6rem;
+  box-shadow: 0 0 0 0.2rem var(--ring), var(--shadow-up);
+  opacity: 0; transition: opacity 0.16s ease;
+  pointer-events: none;
 }
-.rec-text { position: absolute; left: 1.6rem; right: 1.6rem; bottom: 1.3rem; color: #fff; }
-.rec-eyebrow { font-size: 0.95rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.8); }
-.rec-name { margin-top: 0.2rem; font-size: 1.7rem; font-weight: 700; letter-spacing: -0.01em; }
-.rec-desc { margin-top: 0.15rem; font-size: 1.05rem; color: rgba(255, 255, 255, 0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rec:hover, .rec:focus-visible, .rec.is-focus { transform: scale(1.02); }
-.rec:hover::after, .rec:focus-visible::after, .rec.is-focus::after { opacity: 1; }
-.rec:active, .rec.is-pressed { transform: scale(0.98); }
+/* "Carregando": brilho suave que pulsa só em opacidade. */
+.frame::before {
+  content: ""; position: absolute; inset: 0;
+  border-radius: 1.2rem;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0) 30%, rgba(255, 255, 255, 0.55) 50%, rgba(255, 255, 255, 0) 70%);
+  opacity: 0;
+  pointer-events: none;
+}
+.frame.is-loading::before { animation: pulse 1.4s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 
-/* ---------- fileira de apps ---------- */
+.frame:hover, .frame:focus-visible, .frame.is-focus { transform: scale(1.02); }
+.hero:hover, .hero:focus-visible, .hero.is-focus { transform: scale(1.01); }
+.frame:hover::after, .frame:focus-visible::after, .frame.is-focus::after { opacity: 1; }
+.frame:active, .frame.is-pressed { transform: scale(0.985); }
+.frame.is-empty { cursor: default; }
+
+.info { margin-top: 0.85rem; min-width: 0; }
+.info-title {
+  font-size: 1.55rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: opacity 0.14s ease;
+}
+.info-meta {
+  margin-top: 0.15rem;
+  font-size: 1.1rem; color: var(--muted); line-height: 1.3;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: opacity 0.14s ease;
+}
+.info.is-fading .info-title, .info.is-fading .info-meta { opacity: 0; }
+
+/* Lista de pôsteres (Filmes / Séries) */
+.posters { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1.4rem; }
+.poster { height: auto; aspect-ratio: 2 / 3; border-radius: 1rem; }
+.poster .layer, .poster::before { border-radius: 1rem; }
+.poster::after { border-radius: 1.4rem; }
+.list-info { margin-top: 1rem; }
+.list-empty { grid-column: 1 / -1; padding: 6rem 0; text-align: center; font-size: 1.4rem; color: var(--muted); }
+
+/* ---------- dock ---------- */
 .dock {
   flex: 0 0 auto;
-  margin-top: 2.8rem;
-  display: grid;
-  grid-template-columns: repeat(11, minmax(0, 1fr));
-  gap: 1.2rem;
+  margin-top: 1.8rem;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 1.2rem 1.2rem;
+  border-radius: 1.8rem;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 1rem 2.6rem rgba(0, 0, 0, 0.09), inset 0 0 0 1px rgba(255, 255, 255, 0.95), inset 0 1px 0 #fff;
 }
-.app { display: block; text-align: center; }
-.app-card {
+.dock-main { display: flex; gap: 1.2rem; }
+.dock-more { display: flex; gap: 0.8rem; align-items: flex-start; }
+.dock-sep { flex: 0 0 1px; height: 5rem; background: rgba(0, 0, 0, 0.1); margin: 0 1.2rem; }
+
+.app { position: relative; display: block; text-align: center; }
+.tile {
   position: relative;
-  aspect-ratio: 1 / 1;
-  border-radius: 1.2rem;
-  background: var(--surface);
-  box-shadow: var(--shadow);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 9.6rem; height: 6.6rem;
+  border-radius: 1.1rem;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--c, #333);
+  box-shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.12);
   transform: translateZ(0);
   transition: transform 0.16s var(--ease);
 }
-/* Sombra mais alta no foco, só pela opacidade. */
-.app-card::before {
-  content: "";
-  position: absolute; inset: 0;
-  border-radius: inherit;
-  box-shadow: var(--shadow-up);
-  opacity: 0;
-  transition: opacity 0.16s ease;
-  pointer-events: none;
+.tile-name { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.01em; color: var(--ink, #fff); }
+.round {
+  position: relative;
+  width: 4.2rem; height: 4.2rem; margin: 0 auto;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff;
+  box-shadow: 0 0.15rem 0.5rem rgba(0, 0, 0, 0.1);
+  transform: translateZ(0);
+  transition: transform 0.16s var(--ease);
 }
-.app-mono { font-size: 2.3rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
-.app-mono.is-long { font-size: 1.6rem; }
-.app-key {
-  position: absolute; top: 0.55rem; left: 0.7rem;
-  font-size: 0.85rem; font-weight: 600;
-  color: var(--faint);
+.round-mono { font-size: 1.6rem; font-weight: 800; color: var(--c, #333); line-height: 1; }
+.round-name {
+  margin-top: 0.45rem; width: 5rem;
+  font-size: 0.9rem; font-weight: 500; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: color 0.15s ease;
+}
+.key {
+  position: absolute; top: 0.45rem; left: 0.6rem;
+  font-size: 0.8rem; font-weight: 700; color: rgba(255, 255, 255, 0.75);
   font-variant-numeric: tabular-nums;
 }
-.app-info {
-  position: absolute; bottom: 0.55rem; right: 0.65rem;
-  width: 1.2rem; height: 1.2rem;
-  border-radius: 50%;
-  border: 1px solid var(--faint);
-  color: var(--faint);
-  font-size: 0.75rem; font-weight: 700; line-height: 1.1rem;
+.round .key { top: -0.3rem; left: -0.3rem; width: 1.3rem; height: 1.3rem; border-radius: 50%; line-height: 1.3rem; text-align: center; color: #fff; background: #8e8e93; font-size: 0.72rem; }
+.badge-i {
+  position: absolute; bottom: 0.45rem; right: 0.55rem;
+  width: 1.15rem; height: 1.15rem; border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.7); color: rgba(255, 255, 255, 0.85);
+  font-size: 0.72rem; font-weight: 700; line-height: 1.05rem; text-align: center;
 }
-.app-name {
-  margin-top: 0.7rem;
-  font-size: 1.05rem;
-  font-weight: 500;
-  line-height: 1.2;
-  color: var(--muted);
-  /* Até duas linhas com altura fixa: nomes longos aparecem inteiros sem mover nada. */
-  height: 2.52rem;
-  overflow: hidden;
-  transition: color 0.16s ease;
+.round .badge-i { bottom: -0.25rem; right: -0.25rem; background: #fff; border-color: var(--faint); color: var(--faint); }
+
+/* Foco na dock: ampliação sutil + sombra e anel, sem mover vizinhos. */
+.tile::after, .round::after {
+  content: ""; position: absolute; inset: -0.32rem;
+  border-radius: 1.4rem;
+  box-shadow: 0 0 0 0.18rem var(--ring), var(--shadow-up);
+  opacity: 0; transition: opacity 0.16s ease;
+  pointer-events: none;
 }
-.app:hover .app-card, .app:focus-visible .app-card, .app.is-focus .app-card { transform: scale(1.04); }
-.app:hover .app-card::before, .app:focus-visible .app-card::before, .app.is-focus .app-card::before,
-.app:hover .app-card::after, .app:focus-visible .app-card::after, .app.is-focus .app-card::after { opacity: 1; }
-.app:hover .app-name, .app:focus-visible .app-name, .app.is-focus .app-name { color: var(--text); }
-.app.is-selected .app-name { color: var(--text); }
-.app:active .app-card, .app.is-pressed .app-card { transform: scale(0.97); transition-duration: 0.08s; }
+.round::after { border-radius: 50%; }
+.app:hover .tile, .app:focus-visible .tile, .app.is-focus .tile,
+.app:hover .round, .app:focus-visible .round, .app.is-focus .round { transform: scale(1.07); }
+.app:hover .tile::after, .app:focus-visible .tile::after, .app.is-focus .tile::after,
+.app:hover .round::after, .app:focus-visible .round::after, .app.is-focus .round::after { opacity: 1; }
+.app:hover .round-name, .app:focus-visible .round-name, .app.is-focus .round-name, .app.is-selected .round-name { color: var(--text); }
+.app:active .tile, .app.is-pressed .tile, .app:active .round, .app.is-pressed .round { transform: scale(0.97); transition-duration: 0.08s; }
 
-/* ---------- rodapé ---------- */
-.note { flex: 0 0 auto; margin-top: auto; padding-top: 1rem; text-align: center; font-size: 0.95rem; color: var(--faint); }
+/* ---------- créditos ---------- */
+.credit-line { flex: 0 0 auto; margin-top: auto; padding-top: 0.8rem; text-align: center; font-size: 0.85rem; color: var(--faint); }
 
-/* ---------- painel de instruções ---------- */
+/* ---------- painel ---------- */
 .panel-backdrop {
-  position: fixed; inset: 0;
+  position: fixed; inset: 0; z-index: 5;
   display: flex; align-items: center; justify-content: center;
   background: rgba(29, 29, 31, 0.38);
-  z-index: 5;
   animation: fade-in 0.16s ease;
 }
-.panel-backdrop[hidden] { display: none; }
 .panel {
-  width: 56rem;
-  max-width: 92vw;
+  width: 56rem; max-width: 92vw;
   padding: 2.6rem 3rem 2.4rem;
   border-radius: 1.8rem;
-  background: var(--surface);
+  background: #fff;
   box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.25);
   animation: rise 0.2s var(--ease);
 }
-.panel-status {
-  display: inline-block;
-  padding: 0.35rem 0.9rem;
-  border-radius: 999px;
-  font-size: 1rem; font-weight: 600;
-  color: #8a5a00;
-  background: #fff2d6;
-}
+.panel-status { display: inline-block; padding: 0.35rem 0.9rem; border-radius: 999px; font-size: 1rem; font-weight: 600; color: #8a5a00; background: #fff2d6; }
+.panel-status:empty { display: none; }
 .panel-title { margin: 1rem 0 0.6rem; font-size: 2.6rem; font-weight: 700; letter-spacing: -0.01em; }
 .panel-body p { margin: 0.7rem 0; font-size: 1.3rem; line-height: 1.5; color: #3a3a3c; }
+.panel-body .en { font-style: italic; color: var(--muted); }
+.panel-body .logo { display: block; height: 2.4rem; margin: 0.4rem 0 1rem; }
 .panel-close {
-  margin-top: 1.6rem;
-  padding: 0.9rem 2.6rem;
-  border-radius: 999px;
-  font-size: 1.3rem; font-weight: 600;
-  color: #fff;
-  background: var(--text);
+  margin-top: 1.6rem; padding: 0.9rem 2.6rem; border-radius: 999px;
+  font-size: 1.3rem; font-weight: 600; color: #fff; background: var(--text);
   transition: transform 0.16s var(--ease);
 }
 .panel-close:hover, .panel-close:focus-visible, .panel-close.is-focus { transform: scale(1.05); }
 .panel-close:active { transform: scale(0.95); }
-
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 @keyframes rise { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: none; } }
 
 /* ---------- debug (?debug) ---------- */
 .debug {
-  position: fixed;
-  left: 0.8rem; bottom: 0.8rem;
-  max-width: 60rem;
-  padding: 0.6rem 0.9rem;
-  border-radius: 0.6rem;
+  position: fixed; left: 0.8rem; bottom: 0.8rem; max-width: 60rem; z-index: 10;
+  padding: 0.6rem 0.9rem; border-radius: 0.6rem;
   font: 0.9rem/1.4 ui-monospace, Menlo, Consolas, monospace;
-  background: rgba(0, 0, 0, 0.85);
-  color: #e5e5ea;
-  white-space: pre-wrap;
-  pointer-events: none;
-  z-index: 10;
+  background: rgba(0, 0, 0, 0.85); color: #e5e5ea;
+  white-space: pre-wrap; pointer-events: none;
 }
-.debug[hidden] { display: none; }
-
 .noscript { position: fixed; left: 0; right: 0; bottom: 0; padding: 1rem; text-align: center; background: #ffe1e1; font-size: 1.2rem; }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-img, .hero-text, .hero-btn, .rec, .app-card, .app-card::before, .app-card::after,
-  .hero::after, .rec::after, .icon-btn, .panel-close { transition: none; }
-  .panel-backdrop, .panel { animation: none; }
+  *, *::before, *::after { transition: none !important; animation: none !important; }
 }

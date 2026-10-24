@@ -3,53 +3,85 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Só arquivos da própria origem; nenhuma conexão sai desta página.
-     Abrir um app é apenas navegar para o endereço oficial dele. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<!-- Scripts e estilos só da própria origem. Imagens: própria origem e o CDN de
+     imagens do TMDB. Dados: só a própria origem (/api/home, que guarda a chave). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https://image.tmdb.org; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#f5f5f7">
+<meta name="theme-color" content="#eeeef1">
 <title>NEXUS TV</title>
+<link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="assets/css/nexus.css">
-<link rel="preload" as="image" href="assets/img/youtube.webp">
 <script src="assets/js/apps.js" defer></script>
 <script src="assets/js/nexus.js" defer></script>
 </head>
 <body>
 <div class="screen">
 
-  <header class="topbar">
-    <div class="wordmark">NEXUS</div>
-    <div class="top-right">
-      <button class="icon-btn" type="button" id="btn-reload" aria-label="Recarregar a interface">↻</button>
-      <div class="clock" id="clock">--:--</div>
+  <header class="head">
+    <div class="head-left">
+      <h1 class="greet" id="greet">Olá</h1>
+      <nav class="tabs" id="tabs" aria-label="Seções">
+        <button class="tab is-on" type="button" data-view="home">Destaques</button>
+        <button class="tab" type="button" data-view="movies">Filmes</button>
+        <button class="tab" type="button" data-view="series">Séries</button>
+      </nav>
+    </div>
+    <div class="head-right">
+      <div class="head-btns">
+        <button class="circle" type="button" id="btn-credits" aria-label="Créditos e fontes dos dados">i</button>
+        <button class="circle" type="button" id="btn-reload" aria-label="Recarregar a interface">↻</button>
+        <a class="circle" href="diag/" id="btn-diag" aria-label="Diagnóstico do sistema">⚙</a>
+      </div>
+      <div class="head-meta">
+        <span id="clock">--:--</span><span class="dot">·</span><span id="status">Carregando destaques…</span>
+        <button class="retry" type="button" id="btn-retry" hidden>Tentar de novo</button>
+      </div>
     </div>
   </header>
 
-  <section class="top">
-    <a class="hero" id="hero" href="https://www.youtube.com/" data-key="1">
-      <img class="hero-img is-on" id="hero-a" src="assets/img/youtube.webp" alt="" decoding="async">
-      <img class="hero-img" id="hero-b" alt="" decoding="async">
-      <div class="hero-shade"></div>
-      <div class="hero-text" id="hero-text">
-        <div class="hero-title" id="hero-title">YouTube</div>
-        <div class="hero-blurb" id="hero-blurb">Vídeos, canais e transmissões ao vivo.</div>
-        <div class="hero-cta">
-          <span class="hero-btn" id="hero-btn">Abrir</span>
-          <span class="hero-meta" id="hero-meta">Tecla 1 · youtube.com</span>
+  <main class="stage">
+    <section class="view-home" id="view-home">
+      <div class="slot slot-hero">
+        <a class="frame hero is-loading" id="hero">
+          <img class="layer" id="hero-a" alt="" decoding="async">
+          <img class="layer" id="hero-b" alt="" decoding="async">
+        </a>
+        <div class="info">
+          <div class="info-title" id="hero-title">&nbsp;</div>
+          <div class="info-meta" id="hero-meta">&nbsp;</div>
         </div>
       </div>
-    </a>
-    <div class="recs" id="recs"></div>
-  </section>
+      <div class="slot slot-rec">
+        <a class="frame rec is-loading" id="rec-0"><img class="layer" alt="" decoding="async"></a>
+        <div class="info"><div class="info-title">&nbsp;</div><div class="info-meta">&nbsp;</div></div>
+      </div>
+      <div class="slot slot-rec">
+        <a class="frame rec is-loading" id="rec-1"><img class="layer" alt="" decoding="async"></a>
+        <div class="info"><div class="info-title">&nbsp;</div><div class="info-meta">&nbsp;</div></div>
+      </div>
+    </section>
 
-  <nav class="dock" id="dock" aria-label="Aplicativos"></nav>
+    <section class="view-list" id="view-list" hidden>
+      <div class="posters" id="posters"></div>
+      <div class="info list-info">
+        <div class="info-title" id="list-title">&nbsp;</div>
+        <div class="info-meta" id="list-meta">&nbsp;</div>
+      </div>
+    </section>
+  </main>
 
-  <footer class="note">
-    Os atalhos abrem os sites oficiais no navegador da TV. Reprodução de vídeo, DRM e alguns recursos podem não funcionar.
+  <nav class="dock" aria-label="Aplicativos">
+    <div class="dock-main" id="dock-main"></div>
+    <div class="dock-sep" aria-hidden="true"></div>
+    <div class="dock-more" id="dock-more"></div>
+  </nav>
+
+  <footer class="credit-line">
+    Títulos e imagens: TMDB · disponibilidade por serviço: JustWatch, pode variar · a NEXUS TV não é endossada nem certificada pelo TMDB
   </footer>
 
-  <noscript><div class="noscript">O JavaScript está desativado: os cartões dependem dele para aparecer.</div></noscript>
+  <noscript><div class="noscript">O JavaScript está desativado: a interface depende dele.</div></noscript>
 </div>
 
 <div class="panel-backdrop" id="panel" hidden>
