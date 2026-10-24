@@ -3,14 +3,17 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Scripts e estilos só da própria origem. Imagens: própria origem e o CDN de
+<!-- Scripts, estilos e fontes só da própria origem. Imagens: própria origem e o CDN de
      imagens do TMDB. Dados: só a própria origem (/api/home, que guarda a chave). -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' https://image.tmdb.org; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' https://image.tmdb.org; connect-src 'self'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#eeeef1">
 <title>NEXUS TV</title>
 <link rel="icon" href="assets/img/icon.svg" type="image/svg+xml">
+<!-- A fonte começa a baixar junto com o CSS (crossorigin: fontes sempre usam CORS,
+     sem ele o navegador baixaria o arquivo duas vezes). -->
+<link rel="preload" href="assets/fonts/inter-latin-wght.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="assets/css/nexus.css">
 <script src="assets/js/apps.js" defer></script>
 <script src="assets/js/nexus.js" defer></script>

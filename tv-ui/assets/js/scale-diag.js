@@ -20,7 +20,7 @@
     ["Linha de status", "#status"],
     ["Linha de créditos", ".credit-line"]
   ];
-  var FONT_CANDIDATES = ["-apple-system", "SF Pro Display", "Helvetica Neue", "Helvetica", "Arial", "Roboto",
+  var FONT_CANDIDATES = ["NEXUS Inter", "-apple-system", "SF Pro Display", "Helvetica Neue", "Helvetica", "Arial", "Roboto",
     "Noto Sans", "Droid Sans", "DejaVu Sans", "Liberation Sans", "Open Sans", "Ubuntu", "Segoe UI",
     "Tiresias", "Source Sans Pro", "Noto Sans CJK SC", "Arial Unicode MS"];
 
