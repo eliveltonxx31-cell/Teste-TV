@@ -424,12 +424,17 @@
         } else if (r.status === 503 && r.body && r.body.error === "not_configured") {
           setStatus(data ? "Destaques salvos · TMDB não configurado" : "Destaques do TMDB não configurados", false);
           refresh();
+        } else if (r.body && r.body.error === "tmdb_auth_failed") {
+          // Configuração: o segredo existe, mas o TMDB recusou a chave.
+          setStatus(data ? "Destaques salvos · TMDB recusou a chave" : "TMDB recusou a chave configurada", false);
+          refresh();
         } else {
           failed();
         }
       })
       .catch(function () { clearTimeout(timer); failed(); });
   }
+  // Conexão: rede da TV, função ou TMDB fora do alcance.
   function failed() {
     setStatus(data ? "Sem conexão · destaques salvos" : "Destaques indisponíveis no momento", true);
     refresh();

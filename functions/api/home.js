@@ -42,8 +42,10 @@ const SERVICES = [
 export async function onRequestGet(context) {
   const { request, env } = context;
   const waitUntil = context.waitUntil ? context.waitUntil.bind(context) : function () {};
-  const token = env && env.TMDB_TOKEN;
-  if (!token) return json({ error: "not_configured" }, 503, 60);
+  const token = cleanToken(env && env.TMDB_TOKEN);
+  // Segredo ausente no ambiente desta publicação. Sem cache, para que uma
+  // correção no painel apareça na hora (após nova publicação).
+  if (!token) return json({ error: "not_configured" }, 503, 0);
 
   const cache = typeof caches !== "undefined" ? caches.default : null;
   const origin = new URL(request.url).origin;
@@ -63,8 +65,8 @@ export async function onRequestGet(context) {
       const stale = await cache.match(staleKey);
       if (stale) return withHeader(stale, "X-Nexus-Cache", "stale");
     }
-    // Mensagem genérica: nada do erro de origem (nem cabeçalhos) é repassado.
-    return json({ error: "upstream_unavailable" }, 502, 30);
+    // Só um código: nada do erro de origem (nem corpo, nem cabeçalhos) é repassado.
+    return json({ error: classify(err) }, 502, 0);
   }
 
   const body = JSON.stringify(data);
@@ -232,21 +234,47 @@ function pick(sizes, want) {
 }
 
 // ---------- utilitários ----------
-async function tmdb(token, path, params) {
+// Aceita o "API Read Access Token" (v4, enviado como Bearer) ou a "API Key"
+// (v3, 32 caracteres hexadecimais, enviada como api_key).
+function cleanToken(raw) {
+  return typeof raw === "string" ? raw.trim() : "";
+}
+function isV3Key(token) {
+  return /^[0-9a-f]{32}$/i.test(token);
+}
+async function tmdb(token, path, params, timeoutMs) {
   const url = new URL(API + path);
   Object.keys(params || {}).forEach(function (k) { url.searchParams.set(k, params[k]); });
+  const headers = { Accept: "application/json" };
+  if (isV3Key(token)) url.searchParams.set("api_key", token);
+  else headers.Authorization = "Bearer " + token;
   const ctrl = new AbortController();
-  const timer = setTimeout(function () { ctrl.abort(); }, TIMEOUT_MS);
+  const timer = setTimeout(function () { ctrl.abort(); }, timeoutMs || TIMEOUT_MS);
   try {
-    const res = await fetch(url.toString(), {
-      headers: { Authorization: "Bearer " + token, Accept: "application/json" },
-      signal: ctrl.signal
-    });
-    if (!res.ok) throw new Error("tmdb " + res.status);
+    let res;
+    try {
+      res = await fetch(url.toString(), { headers: headers, signal: ctrl.signal });
+    } catch (err) {
+      // O cancelamento pelo nosso timer identifica o timeout, qualquer que seja o erro.
+      if (ctrl.signal.aborted) { const t = new Error("tmdb timeout"); t.timeout = true; throw t; }
+      throw err;
+    }
+    if (!res.ok) {
+      const e = new Error("tmdb http");
+      e.status = res.status;
+      throw e;
+    }
     return await res.json();
   } finally {
     clearTimeout(timer);
   }
+}
+// Separa erro de autenticação (chave recusada) de erro de conexão.
+function classify(err) {
+  if (err && (err.status === 401 || err.status === 403)) return "tmdb_auth_failed";
+  if (err && err.status) return "tmdb_http_" + err.status;
+  if (err && (err.timeout || err.name === "AbortError")) return "tmdb_timeout";
+  return "tmdb_unreachable";
 }
 
 function json(obj, status, maxAge) {
@@ -254,7 +282,7 @@ function json(obj, status, maxAge) {
     status: status,
     headers: {
       "Content-Type": "application/json; charset=utf-8",
-      "Cache-Control": "public, max-age=" + maxAge,
+      "Cache-Control": maxAge ? "public, max-age=" + maxAge : "no-store",
       "X-Content-Type-Options": "nosniff"
     }
   });
