@@ -5,12 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- Só arquivos da própria origem; nenhuma conexão sai desta página.
      Abrir um app é apenas navegar para o endereço oficial dele. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#0b0c0f">
+<meta name="theme-color" content="#f5f5f7">
 <title>NEXUS TV</title>
 <link rel="stylesheet" href="assets/css/nexus.css">
+<link rel="preload" as="image" href="assets/img/youtube.webp">
 <script src="assets/js/apps.js" defer></script>
 <script src="assets/js/nexus.js" defer></script>
 </head>
@@ -20,21 +21,29 @@
   <header class="topbar">
     <div class="wordmark">NEXUS</div>
     <div class="top-right">
-      <a class="icon-btn" href="diag/" id="btn-diag" aria-label="Diagnóstico do sistema" data-title="Diagnóstico"
-         data-blurb="Página de testes do navegador e do controle remoto.">⚙</a>
-      <button class="icon-btn" type="button" id="btn-reload" aria-label="Recarregar a interface" data-title="Recarregar"
-         data-blurb="Recarrega a NEXUS TV.">↻</button>
+      <button class="icon-btn" type="button" id="btn-reload" aria-label="Recarregar a interface">↻</button>
       <div class="clock" id="clock">--:--</div>
     </div>
   </header>
 
-  <section class="shelf" aria-live="polite">
-    <div class="shelf-title" id="shelf-title">Boa noite</div>
-    <div class="shelf-blurb" id="shelf-blurb">Escolha um app com o ponteiro ou aperte o número no controle.</div>
-    <div class="shelf-meta" id="shelf-meta"></div>
+  <section class="top">
+    <a class="hero" id="hero" href="https://www.youtube.com/" data-key="1">
+      <img class="hero-img is-on" id="hero-a" src="assets/img/youtube.webp" alt="" decoding="async">
+      <img class="hero-img" id="hero-b" alt="" decoding="async">
+      <div class="hero-shade"></div>
+      <div class="hero-text" id="hero-text">
+        <div class="hero-title" id="hero-title">YouTube</div>
+        <div class="hero-blurb" id="hero-blurb">Vídeos, canais e transmissões ao vivo.</div>
+        <div class="hero-cta">
+          <span class="hero-btn" id="hero-btn">Abrir</span>
+          <span class="hero-meta" id="hero-meta">Tecla 1 · youtube.com</span>
+        </div>
+      </div>
+    </a>
+    <div class="recs" id="recs"></div>
   </section>
 
-  <main class="grid" id="grid"></main>
+  <nav class="dock" id="dock" aria-label="Aplicativos"></nav>
 
   <footer class="note">
     Os atalhos abrem os sites oficiais no navegador da TV. Reprodução de vídeo, DRM e alguns recursos podem não funcionar.

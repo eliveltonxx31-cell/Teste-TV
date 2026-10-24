@@ -1,30 +1,38 @@
 /*
  * NEXUS TV · configuração dos cartões.
- * Para trocar um app, edite só esta lista. A ordem define a posição na grade.
+ * Para trocar um app, edite só esta lista. A ordem define a posição na fileira.
  *
- * key:   tecla numérica que abre o cartão ("1"–"9" e "0").
- * name:  nome exibido no cartão e na vitrine.
- * blurb: descrição curta mostrada na vitrine.
- * color: tom do cartão (#rrggbb).
+ * key:   tecla numérica que abre o cartão ("1"–"9" e "0"); vazio = sem tecla.
+ * name:  nome exibido.
+ * mono:  monograma do cartão compacto (1 a 3 caracteres).
+ * color: cor do monograma (#rrggbb).
+ * img:   arte do destaque (paisagem original, local, em WebP).
+ * blurb: descrição curta mostrada no destaque.
  * type:  "site" abre o endereço oficial na mesma aba;
+ *        "link" abre uma página da própria NEXUS;
  *        "info" abre um painel de instruções dentro da NEXUS.
- * url:   endereço oficial (só para "site").
+ * url:   endereço (para "site" e "link").
  * panel: conteúdo do painel (só para "info").
  *
  * Abrir o site oficial não garante reprodução de vídeo, DRM ou funcionamento
  * completo no navegador da TV.
  */
 window.NEXUS_APPS = [
-  { key: "1", name: "YouTube", color: "#ff3b30", type: "site", url: "https://www.youtube.com/",
+  { key: "1", name: "YouTube", mono: "YT", color: "#ff0000", img: "assets/img/youtube.webp",
+    type: "site", url: "https://www.youtube.com/",
     blurb: "Vídeos, canais e transmissões ao vivo." },
-  { key: "2", name: "Netflix", color: "#e50914", type: "site", url: "https://www.netflix.com/",
+  { key: "2", name: "Netflix", mono: "N", color: "#e50914", img: "assets/img/netflix.webp",
+    type: "site", url: "https://www.netflix.com/",
     blurb: "Séries e filmes. A reprodução no navegador da TV depende de DRM." },
-  { key: "3", name: "Prime Video", color: "#1a98ff", type: "site", url: "https://www.primevideo.com/",
+  { key: "3", name: "Prime Video", mono: "PV", color: "#1a98ff", img: "assets/img/prime.webp",
+    type: "site", url: "https://www.primevideo.com/",
     blurb: "Filmes e séries da Amazon. A reprodução depende de DRM." },
-  { key: "4", name: "Spotify", color: "#1ed760", type: "site", url: "https://open.spotify.com/",
+  { key: "4", name: "Spotify", mono: "S", color: "#1db954", img: "assets/img/spotify.webp",
+    type: "site", url: "https://open.spotify.com/",
     blurb: "Músicas e podcasts pelo player web." },
-  { key: "5", name: "IBO Player Pro", color: "#8e8e93", type: "info",
-    blurb: "App instalado no VIDAA. Mostra como abrir; a abertura direta não está confirmada.",
+  { key: "5", name: "IBO Player Pro", mono: "IBO", color: "#5b6b7c", img: "assets/img/ibo.webp",
+    type: "info",
+    blurb: "App instalado no VIDAA. Veja como abrir; a abertura direta não está confirmada.",
     panel: {
       title: "IBO Player Pro",
       status: "Abertura direta pela NEXUS: não confirmada",
@@ -34,16 +42,21 @@ window.NEXUS_APPS = [
         "Para voltar à NEXUS depois: abra o navegador da TV e use o favorito da NEXUS."
       ]
     } },
-  { key: "6", name: "Twitch", color: "#9146ff", type: "site", url: "https://www.twitch.tv/",
+  { key: "6", name: "Twitch", mono: "T", color: "#9146ff", img: "assets/img/twitch.webp",
+    type: "site", url: "https://www.twitch.tv/",
     blurb: "Transmissões ao vivo de jogos e criadores." },
-  { key: "7", name: "Google", color: "#4285f4", type: "site", url: "https://www.google.com/",
+  { key: "7", name: "Google", mono: "G", color: "#4285f4", img: "assets/img/google.webp",
+    type: "site", url: "https://www.google.com/",
     blurb: "Pesquisa na web." },
-  { key: "8", name: "YouTube Music", color: "#ff0033", type: "site", url: "https://music.youtube.com/",
+  { key: "8", name: "YouTube Music", mono: "♪", color: "#ff0033", img: "assets/img/ytmusic.webp",
+    type: "site", url: "https://music.youtube.com/",
     blurb: "Músicas, álbuns e playlists. O site pode não aceitar o navegador da TV." },
-  { key: "9", name: "Globoplay", color: "#ff6a3d", type: "site", url: "https://globoplay.globo.com/",
+  { key: "9", name: "Globoplay", mono: "g", color: "#ff5a1f", img: "assets/img/globoplay.webp",
+    type: "site", url: "https://globoplay.globo.com/",
     blurb: "Novelas, séries e TV Globo. A reprodução depende de DRM." },
-  { key: "0", name: "Loja VIDAA", color: "#8e8e93", type: "info",
-    blurb: "Loja oficial de apps da Hisense. Mostra como abrir; a abertura direta não está confirmada.",
+  { key: "0", name: "Loja VIDAA", mono: "V", color: "#6f8191", img: "assets/img/vidaa.webp",
+    type: "info",
+    blurb: "Loja oficial de apps da Hisense. Veja como abrir; a abertura direta não está confirmada.",
     panel: {
       title: "Loja VIDAA",
       status: "Abertura direta pela NEXUS: não confirmada",
@@ -52,5 +65,17 @@ window.NEXUS_APPS = [
         "Para abrir: aperte Home no controle e escolha a loja de aplicativos na tela inicial do VIDAA.",
         "Se você usa o app oficial VIDAA no iPhone, verifique se ele oferece acesso à loja ou aos apps da TV."
       ]
-    } }
+    } },
+  { key: "", name: "Diagnóstico", mono: "⚙", color: "#6e6e73", img: "assets/img/diag.webp",
+    type: "link", url: "diag/",
+    blurb: "Testes do navegador, da tela e do controle remoto." }
+];
+
+/*
+ * Recomendações ao lado do destaque. "app" é a tecla do app de destino.
+ * São atalhos para os sites oficiais, sem títulos de conteúdo inventados.
+ */
+window.NEXUS_RECS = [
+  { app: "6", eyebrow: "Ao vivo agora", text: "Transmissões de jogos e criadores na Twitch." },
+  { app: "8", eyebrow: "Para ouvir", text: "Álbuns e playlists no YouTube Music." }
 ];

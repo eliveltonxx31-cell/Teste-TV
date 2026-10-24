@@ -1,23 +1,24 @@
 /*
- * NEXUS TV · estilos da tela inicial.
+ * NEXUS TV · estilos da tela inicial (tema claro).
  * Alvo: Chromium 111 (navegador VIDAA). Sem CSS nesting, subgrid, popover ou color-mix.
- * Desempenho: o foco anima só transform e opacity. Sombras e brilho ficam em
- * pseudo-elementos que só mudam de opacidade, para não repintar o cartão.
+ * Desempenho: foco e troca de imagem animam só transform e opacity. Sombras de
+ * foco ficam em pseudo-elementos que só mudam de opacidade (sem repintar o cartão).
  *
  * Escala: desenho em 1920×1080 com 1rem = 20px. A base acompanha o menor lado
  * proporcional, então tudo cabe sem rolagem em 1920×1080, 960×540 ou com a
  * moldura do navegador ocupando parte da altura.
  */
 :root {
-  --bg: #0b0c0f;
-  --bg-2: #15171c;
-  --card: #1a1c21;
-  --text: #f5f5f7;
-  --muted: #8e9099;
-  --soft: #c7c8cf;
-  --focus: rgba(120, 166, 255, 0.55);
-  --radius: 1.4rem;
-  --ease: cubic-bezier(0.22, 0.7, 0.2, 1);
+  --bg: #f5f5f7;
+  --bg-2: #e8e8ed;
+  --surface: #ffffff;
+  --text: #1d1d1f;
+  --muted: #6e6e73;
+  --faint: #8e8e93;
+  --ring: #1d1d1f;
+  --shadow: 0 0.2rem 0.6rem rgba(0, 0, 0, 0.06), 0 0.6rem 1.6rem rgba(0, 0, 0, 0.06);
+  --shadow-up: 0 0.6rem 1.4rem rgba(0, 0, 0, 0.12), 0 1.4rem 3rem rgba(0, 0, 0, 0.12);
+  --ease: cubic-bezier(0.25, 0.7, 0.25, 1);
 }
 
 * { box-sizing: border-box; }
@@ -31,9 +32,7 @@ body {
   margin: 0;
   min-height: 100vh;
   color: var(--text);
-  background:
-    radial-gradient(80rem 36rem at 50% -14rem, #20232b 0%, transparent 70%),
-    linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 60%);
+  background: linear-gradient(180deg, #fbfbfd 0%, var(--bg) 45%, var(--bg-2) 100%);
   font-family: -apple-system, "SF Pro Display", "Helvetica Neue", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
@@ -41,206 +40,235 @@ body {
 
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; border: 0; background: none; padding: 0; }
+a, button { outline: none; cursor: pointer; }
 
 .screen {
   width: 96rem;
   height: 54rem;
   margin: 0 auto;
-  padding: 2.4rem 4.8rem 1.8rem;
+  padding: 2.2rem 4.8rem 1.4rem;
   display: flex;
   flex-direction: column;
 }
 
-/* ---------- barra superior ---------- */
+/* ---------- cabeçalho ---------- */
 .topbar {
-  flex: 0 0 3.2rem;
+  flex: 0 0 3rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.wordmark {
-  font-size: 1.3rem;
-  font-weight: 600;
-  letter-spacing: 0.42em;
-  color: var(--soft);
-}
+.wordmark { font-size: 1.3rem; font-weight: 600; letter-spacing: 0.42em; color: var(--text); }
 .top-right { display: flex; align-items: center; gap: 1.2rem; }
-.clock {
-  min-width: 5.4rem;
-  text-align: right;
-  font-size: 1.7rem;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  color: var(--soft);
-}
+.clock { min-width: 5rem; text-align: right; font-size: 1.6rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--muted); }
 .icon-btn {
-  width: 3rem; height: 3rem;
+  width: 2.8rem; height: 2.8rem;
   border-radius: 50%;
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 1.35rem;
+  font-size: 1.3rem;
   color: var(--muted);
-  background: rgba(255, 255, 255, 0.05);
-  cursor: pointer;
+  background: rgba(0, 0, 0, 0.05);
   transition: transform 0.16s var(--ease), background-color 0.16s ease, color 0.16s ease;
-  outline: none;
 }
-.icon-btn:hover, .icon-btn:focus-visible, .icon-btn.is-focus {
-  color: var(--text);
-  background: rgba(255, 255, 255, 0.16);
-  transform: scale(1.1);
-}
-.icon-btn:active { transform: scale(0.94); }
+.icon-btn:hover, .icon-btn:focus-visible, .icon-btn.is-focus { color: var(--text); background: rgba(0, 0, 0, 0.12); transform: scale(1.06); }
+.icon-btn:active { transform: scale(0.95); }
 
-/* ---------- vitrine ---------- */
-.shelf {
-  flex: 0 0 11rem;
-  margin-top: 2.6rem;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  overflow: hidden;
-}
-.shelf-title {
-  font-size: 4.2rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.shelf-blurb {
-  margin-top: 0.5rem;
-  font-size: 1.45rem;
-  color: var(--soft);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.shelf-meta {
-  margin-top: 0.4rem;
-  min-height: 1.6rem;
-  font-size: 1.1rem;
-  color: var(--muted);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-/* ---------- grade de cartões ---------- */
-.grid {
-  flex: 1 1 auto;
-  min-height: 0;
+/* ---------- destaque + recomendações ---------- */
+.top {
+  flex: 0 0 29rem;
   margin-top: 1.6rem;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  grid-auto-rows: max-content;
-  align-content: center;
-  gap: 1.6rem 2.4rem;
+  grid-template-columns: minmax(0, 1fr) 27.2rem;
+  gap: 1.6rem;
 }
-.tile {
-  display: block;
-  cursor: pointer;
-  outline: none;
-  text-align: left;
+
+/* Contorno de foco comum: anel fino escuro, só a opacidade muda. */
+.hero::after, .rec::after, .app-card::after {
+  content: "";
+  position: absolute;
+  inset: -0.35rem;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0.2rem var(--ring);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+  pointer-events: none;
 }
-.card {
+/* O raio do anel acompanha o cartão com a folga do inset. */
+.hero::after { border-radius: 1.75rem; }
+.rec::after { border-radius: 1.45rem; }
+.app-card::after { border-radius: 1.55rem; }
+
+.hero {
   position: relative;
-  aspect-ratio: 16 / 10;
-  border-radius: var(--radius);
-  background:
-    linear-gradient(155deg, var(--tint, rgba(255, 255, 255, 0.08)) 0%, rgba(255, 255, 255, 0.02) 62%),
-    var(--card);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  display: block;
+  border-radius: 1.4rem;
+  box-shadow: var(--shadow);
+  background: #2a2a2e;
+}
+.hero:hover::after, .hero:focus-visible::after, .hero.is-focus::after { opacity: 1; }
+.hero:active .hero-btn, .hero.is-pressed .hero-btn { transform: scale(0.96); }
+
+/* Recorte das imagens separado do anel de foco (que fica fora da borda). */
+.hero-img, .hero-shade { border-radius: 1.4rem; }
+.hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+.hero-img.is-on { opacity: 1; }
+.hero-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.25) 42%, rgba(0, 0, 0, 0) 70%),
+              linear-gradient(0deg, rgba(0, 0, 0, 0.45) 0%, rgba(0, 0, 0, 0) 55%);
+}
+.hero-text {
+  position: absolute;
+  left: 3.2rem; bottom: 2.8rem;
+  max-width: 40rem;
+  color: #fff;
+  transition: opacity 0.14s ease;
+}
+.hero-text.is-fading { opacity: 0; }
+.hero-title {
+  font-size: 3.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hero-blurb {
+  margin-top: 0.6rem;
+  font-size: 1.35rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.88);
+  /* Até duas linhas, com altura fixa para o botão não mudar de lugar. */
+  height: 3.8rem;
+  overflow: hidden;
+}
+.hero-cta { display: flex; align-items: center; gap: 1.2rem; margin-top: 1.2rem; }
+.hero-btn {
+  display: inline-block;
+  padding: 0.75rem 2.2rem;
+  border-radius: 999px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1d1d1f;
+  background: #fff;
+  transition: transform 0.12s var(--ease);
+}
+.hero-meta { font-size: 1.1rem; color: rgba(255, 255, 255, 0.75); white-space: nowrap; }
+
+.recs {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  gap: 1.6rem;
+  min-height: 0;
+}
+.rec {
+  position: relative;
+  display: block;
+  border-radius: 1.1rem;
+  box-shadow: var(--shadow);
+  background: #2a2a2e;
+  transition: transform 0.18s var(--ease);
+}
+.rec img {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  border-radius: 1.1rem;
+}
+.rec-shade {
+  position: absolute; inset: 0;
+  border-radius: 1.1rem;
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.6) 0%, rgba(0, 0, 0, 0) 70%);
+}
+.rec-text { position: absolute; left: 1.6rem; right: 1.6rem; bottom: 1.3rem; color: #fff; }
+.rec-eyebrow { font-size: 0.95rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.8); }
+.rec-name { margin-top: 0.2rem; font-size: 1.7rem; font-weight: 700; letter-spacing: -0.01em; }
+.rec-desc { margin-top: 0.15rem; font-size: 1.05rem; color: rgba(255, 255, 255, 0.85); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rec:hover, .rec:focus-visible, .rec.is-focus { transform: scale(1.02); }
+.rec:hover::after, .rec:focus-visible::after, .rec.is-focus::after { opacity: 1; }
+.rec:active, .rec.is-pressed { transform: scale(0.98); }
+
+/* ---------- fileira de apps ---------- */
+.dock {
+  flex: 0 0 auto;
+  margin-top: 2.8rem;
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr));
+  gap: 1.2rem;
+}
+.app { display: block; text-align: center; }
+.app-card {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 1.2rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
   display: flex;
   align-items: center;
   justify-content: center;
   transform: translateZ(0);
-  transition: transform 0.2s var(--ease);
+  transition: transform 0.16s var(--ease);
 }
-/* Sombra e contorno do foco: só a opacidade muda. */
-.card::after {
+/* Sombra mais alta no foco, só pela opacidade. */
+.app-card::before {
   content: "";
-  position: absolute;
-  inset: 0;
+  position: absolute; inset: 0;
   border-radius: inherit;
-  box-shadow: 0 1.4rem 2.8rem rgba(0, 0, 0, 0.55), 0 0 0 0.12rem var(--focus);
+  box-shadow: var(--shadow-up);
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.16s ease;
   pointer-events: none;
 }
-/* Brilho suave no topo, estilo vidro. */
-.card::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 45%);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-  pointer-events: none;
-}
-.card-name {
-  position: relative;
-  padding: 0 1rem;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  text-align: center;
-  line-height: 1.15;
-  color: var(--text);
-}
-.card-key {
-  position: absolute;
-  top: 0.8rem; left: 0.9rem;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.45);
+.app-mono { font-size: 2.3rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1; }
+.app-mono.is-long { font-size: 1.6rem; }
+.app-key {
+  position: absolute; top: 0.55rem; left: 0.7rem;
+  font-size: 0.85rem; font-weight: 600;
+  color: var(--faint);
   font-variant-numeric: tabular-nums;
 }
-.card-tag {
-  position: absolute;
-  bottom: 0.8rem; right: 0.9rem;
-  font-size: 0.85rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.5);
+.app-info {
+  position: absolute; bottom: 0.55rem; right: 0.65rem;
+  width: 1.2rem; height: 1.2rem;
+  border-radius: 50%;
+  border: 1px solid var(--faint);
+  color: var(--faint);
+  font-size: 0.75rem; font-weight: 700; line-height: 1.1rem;
 }
-.label {
-  margin-top: 0.8rem;
-  font-size: 1.15rem;
+.app-name {
+  margin-top: 0.7rem;
+  font-size: 1.05rem;
   font-weight: 500;
+  line-height: 1.2;
   color: var(--muted);
-  text-align: center;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  transition: color 0.16s ease, transform 0.2s var(--ease);
+  /* Até duas linhas com altura fixa: nomes longos aparecem inteiros sem mover nada. */
+  height: 2.52rem;
+  overflow: hidden;
+  transition: color 0.16s ease;
 }
-
-.tile:hover .card, .tile:focus-visible .card, .tile.is-focus .card {
-  transform: translateY(-0.3rem) scale(1.08);
-}
-.tile:hover .card::after, .tile:focus-visible .card::after, .tile.is-focus .card::after,
-.tile:hover .card::before, .tile:focus-visible .card::before, .tile.is-focus .card::before { opacity: 1; }
-.tile:hover .label, .tile:focus-visible .label, .tile.is-focus .label {
-  color: var(--text);
-  transform: translateY(0.5rem);
-}
-.tile:active .card, .tile.is-pressed .card {
-  transform: scale(0.96);
-  transition-duration: 0.08s;
-}
+.app:hover .app-card, .app:focus-visible .app-card, .app.is-focus .app-card { transform: scale(1.04); }
+.app:hover .app-card::before, .app:focus-visible .app-card::before, .app.is-focus .app-card::before,
+.app:hover .app-card::after, .app:focus-visible .app-card::after, .app.is-focus .app-card::after { opacity: 1; }
+.app:hover .app-name, .app:focus-visible .app-name, .app.is-focus .app-name { color: var(--text); }
+.app.is-selected .app-name { color: var(--text); }
+.app:active .app-card, .app.is-pressed .app-card { transform: scale(0.97); transition-duration: 0.08s; }
 
 /* ---------- rodapé ---------- */
-.note {
-  flex: 0 0 auto;
-  margin-top: 1.4rem;
-  text-align: center;
-  font-size: 1rem;
-  color: #6e7079;
-}
+.note { flex: 0 0 auto; margin-top: auto; padding-top: 1rem; text-align: center; font-size: 0.95rem; color: var(--faint); }
 
 /* ---------- painel de instruções ---------- */
 .panel-backdrop {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(5, 6, 8, 0.78);
+  position: fixed; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(29, 29, 31, 0.38);
   z-index: 5;
   animation: fade-in 0.16s ease;
 }
@@ -250,38 +278,34 @@ button { font: inherit; color: inherit; border: 0; background: none; padding: 0;
   max-width: 92vw;
   padding: 2.6rem 3rem 2.4rem;
   border-radius: 1.8rem;
-  background: #1b1d22;
-  box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  background: var(--surface);
+  box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.25);
   animation: rise 0.2s var(--ease);
 }
 .panel-status {
   display: inline-block;
   padding: 0.35rem 0.9rem;
   border-radius: 999px;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #ffd27a;
-  background: rgba(255, 196, 77, 0.12);
+  font-size: 1rem; font-weight: 600;
+  color: #8a5a00;
+  background: #fff2d6;
 }
 .panel-title { margin: 1rem 0 0.6rem; font-size: 2.6rem; font-weight: 700; letter-spacing: -0.01em; }
-.panel-body p { margin: 0.7rem 0; font-size: 1.3rem; line-height: 1.5; color: var(--soft); }
+.panel-body p { margin: 0.7rem 0; font-size: 1.3rem; line-height: 1.5; color: #3a3a3c; }
 .panel-close {
   margin-top: 1.6rem;
   padding: 0.9rem 2.6rem;
   border-radius: 999px;
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: #0b0c0f;
-  background: #f5f5f7;
-  cursor: pointer;
-  outline: none;
+  font-size: 1.3rem; font-weight: 600;
+  color: #fff;
+  background: var(--text);
   transition: transform 0.16s var(--ease);
 }
-.panel-close:hover, .panel-close:focus-visible, .panel-close.is-focus { transform: scale(1.06); }
+.panel-close:hover, .panel-close:focus-visible, .panel-close.is-focus { transform: scale(1.05); }
 .panel-close:active { transform: scale(0.95); }
 
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes rise { from { opacity: 0; transform: translateY(1rem) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes rise { from { opacity: 0; transform: translateY(1rem); } to { opacity: 1; transform: none; } }
 
 /* ---------- debug (?debug) ---------- */
 .debug {
@@ -292,21 +316,17 @@ button { font: inherit; color: inherit; border: 0; background: none; padding: 0;
   border-radius: 0.6rem;
   font: 0.9rem/1.4 ui-monospace, Menlo, Consolas, monospace;
   background: rgba(0, 0, 0, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #d6d8e0;
+  color: #e5e5ea;
   white-space: pre-wrap;
   pointer-events: none;
   z-index: 10;
 }
 .debug[hidden] { display: none; }
 
-.noscript {
-  position: fixed; left: 0; right: 0; bottom: 0;
-  padding: 1rem; text-align: center;
-  background: #4a1620; font-size: 1.2rem;
-}
+.noscript { position: fixed; left: 0; right: 0; bottom: 0; padding: 1rem; text-align: center; background: #ffe1e1; font-size: 1.2rem; }
 
 @media (prefers-reduced-motion: reduce) {
-  .card, .card::before, .card::after, .label, .icon-btn, .panel-close { transition: none; }
+  .hero-img, .hero-text, .hero-btn, .rec, .app-card, .app-card::before, .app-card::after,
+  .hero::after, .rec::after, .icon-btn, .panel-close { transition: none; }
   .panel-backdrop, .panel { animation: none; }
 }
