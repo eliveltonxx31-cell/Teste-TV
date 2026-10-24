@@ -637,6 +637,13 @@
       renderDebug();
       requestAnimationFrame(debugLoop);
     }
+
+    // Diagnóstico de escala/viewport/renderização: só carrega com ?escala na URL.
+    if (/(?:^|[?&])escala(?:[=&]|$)/.test(location.search)) {
+      var sd = document.createElement("script");
+      sd.src = "assets/js/scale-diag.js";
+      document.body.appendChild(sd);
+    }
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", start);

@@ -1,0 +1,41 @@
+/*
+ * NEXUS TV · diagnóstico de escala (só com ?escala na URL).
+ * Camada sobreposta: não altera o layout da interface. Usa vw, não rem, para
+ * ficar legível mesmo se a escala da NEXUS estiver errada.
+ */
+.sd-panel {
+  position: fixed; top: 1.2vw; right: 1.2vw; bottom: 1.2vw; z-index: 50;
+  width: 46vw; overflow-y: auto;
+  padding: 1vw 1.2vw;
+  border-radius: 0.8vw;
+  background: rgba(10, 10, 14, 0.94); color: #f2f2f7;
+  font: max(13px, 0.95vw)/1.45 ui-monospace, Menlo, Consolas, "DejaVu Sans Mono", monospace;
+  letter-spacing: 0;
+}
+.sd-panel[hidden], .sd-pattern[hidden], .sd-show[hidden] { display: none !important; }
+.sd-panel h3 { margin: 0.9vw 0 0.3vw; font-size: 1.1em; color: #9fc3ff; letter-spacing: 0; }
+.sd-panel table { width: 100%; border-collapse: collapse; }
+.sd-panel td { padding: 0.12vw 0.4vw 0.12vw 0; vertical-align: top; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+.sd-panel td:first-child { color: #a1a1aa; white-space: nowrap; }
+.sd-warn { color: #ffd27a; }
+.sd-bad { color: #ff8a8a; }
+.sd-ok { color: #7ee2a8; }
+.sd-btns { display: flex; flex-wrap: wrap; gap: 0.6vw; margin: 0.4vw 0 0.6vw; }
+.sd-btn {
+  font: inherit; font-weight: 700; color: #0b0b0f; background: #f2f2f7;
+  border: 0; border-radius: 999px; padding: 0.35vw 1vw; cursor: pointer;
+}
+.sd-btn:hover, .sd-btn:focus { outline: 0.2vw solid #9fc3ff; outline-offset: 0.15vw; }
+.sd-show { position: fixed; top: 1.2vw; right: 1.2vw; z-index: 50; }
+.sd-summary { white-space: pre-wrap; background: rgba(255, 255, 255, 0.06); padding: 0.6vw; border-radius: 0.4vw; margin: 0; }
+
+/* Padrão de teste: linhas de 1 px CSS e de 1 px físico, e amostras de texto. */
+.sd-pattern {
+  position: fixed; inset: 0; z-index: 49;
+  background: #fff; color: #000;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 2vw; padding: 3vw;
+  font-family: sans-serif;
+}
+.sd-lines { height: 12vw; border: 1px solid #000; }
+.sd-label { font: max(13px, 0.9vw)/1.3 monospace; margin: 0.8vw 0 0.3vw; }
+.sd-sample { margin: 0.2vw 0; white-space: nowrap; }
