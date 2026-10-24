@@ -46,6 +46,8 @@
     font-size: 1.2rem;
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
+    /* Sem ancoragem de rolagem: redesenhar tabelas não deve gerar eventos de rolagem falsos. */
+    overflow-anchor: none;
   }
   /* Margem de segurança (~5%) para TVs com overscan. */
   .page { padding: 2.5rem 4.8rem 4rem; max-width: 96rem; margin: 0 auto; }
@@ -194,6 +196,7 @@
     width: auto;
   }
   .keylog tbody tr:first-child td { background: rgba(47, 123, 255, 0.16); }
+  .keylog td:nth-child(-n+3) { white-space: nowrap; }
   .ev-down { color: var(--ok); }
   .ev-up { color: var(--muted); }
   .ev-sys { color: var(--warn); }
@@ -204,6 +207,44 @@
   }
   .last-key b { font-size: 1.8rem; color: var(--accent-2); }
   .two { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1.4rem; }
+  h3.sub { margin: 1.4rem 0 0.7rem; font-size: 1.3rem; }
+  .status-row {
+    display: flex; flex-wrap: wrap; gap: 0.6rem 2rem;
+    margin-bottom: 1rem; color: var(--muted);
+  }
+  .status-row b { color: var(--text); }
+  .status-row .yes { color: var(--ok); }
+  .status-row .no { color: var(--no); }
+  .cls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; }
+  .cls .box {
+    background: #0c1328; border: 1px solid var(--line); border-radius: 0.7rem;
+    padding: 0.8rem 1rem;
+  }
+  .cls .box b { display: block; font-size: 2rem; font-variant-numeric: tabular-nums; color: var(--accent-2); }
+  .cls .box strong { display: block; }
+  .cls .box span { color: var(--muted); font-size: 0.95rem; }
+  .verdict {
+    margin: 1rem 0 0;
+    padding: 0.9rem 1.2rem;
+    border-radius: 0.7rem;
+    background: rgba(255, 191, 71, 0.08);
+    border: 1px solid rgba(255, 191, 71, 0.45);
+  }
+  .verdict li { margin: 0.2rem 0; }
+  .guide {
+    background: #0c1328; border: 1px solid var(--line); border-radius: 0.7rem;
+    padding: 1rem 1.2rem; margin-bottom: 1rem;
+  }
+  .guide-prompt { font-size: 2.2rem; font-weight: 800; color: var(--accent-2); margin: 0.2rem 0; }
+  .guide-count { font-size: 1.2rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+  button:disabled { opacity: 0.45; cursor: default; }
+  textarea {
+    width: 100%; min-height: 4.5rem;
+    font: inherit; color: var(--text);
+    background: #070b18; border: 2px solid var(--line); border-radius: 0.7rem;
+    padding: 0.6rem 0.9rem;
+  }
+  textarea:focus { outline: 0.25rem solid var(--accent-2); outline-offset: 0.15rem; }
   .summary-box {
     background: #070b18; border: 1px solid var(--line); border-radius: 0.7rem;
     padding: 1rem 1.2rem; white-space: pre-wrap; margin: 0;
@@ -301,16 +342,65 @@
 
     <!-- 5. Controle remoto -->
     <section class="card span-2" id="sec-keys">
-      <h2><span class="num">5</span>Controle remoto: teclas recebidas</h2>
-      <div class="last-key">
-        <span class="muted">Última tecla:</span>
-        <b id="last-key">nenhuma</b>
-        <span class="mono" id="last-key-detail"></span>
+      <h2><span class="num">5</span>Controle remoto: o que chega à página</h2>
+      <p class="muted">Esta seção não presume que o controle gere eventos de teclado. Ela observa todos os sinais que
+        uma tecla pode virar (tecla, cursor, clique, mudança de foco, rolagem, saída da página) e mostra qual apareceu.
+        Os ouvintes estão na fase de captura da janela, o ponto mais cedo a que uma página tem acesso. Se nada aparecer
+        ali, a tecla foi consumida antes de chegar à página.</p>
+      <div class="status-row">
+        <span>Página com foco: <b id="focus-state">?</b></span>
+        <span>Elemento em foco: <b class="mono" id="active-el">?</b></span>
+        <span>Última tecla: <b id="last-key">nenhuma</b> <span class="mono" id="last-key-detail"></span></span>
       </div>
       <div class="btns">
         <button type="button" id="btn-clear">Limpar registros</button>
         <button type="button" id="btn-nav">Mover foco com setas: ligado</button>
+        <button type="button" id="btn-focus">Dar foco à página</button>
       </div>
+
+      <h3 class="sub">Classificação dos sinais recebidos</h3>
+      <div class="cls">
+        <div class="box"><b id="cnt-key">0</b><strong>A · Teclas no JavaScript</strong>
+          <span>keydown, keyup ou keypress vistos pela página</span></div>
+        <div class="box"><b id="cnt-ptr">0</b><strong>B · Cursor do navegador</strong>
+          <span>movimentos e cliques de ponteiro (controle em modo cursor)</span></div>
+        <div class="box"><b id="cnt-sysfocus">0</b><strong>C · Foco movido pelo sistema</strong>
+          <span>o foco mudou sem tecla no JavaScript, sem clique e sem ação desta página</span></div>
+        <div class="box"><b id="cnt-sysclick">0</b><strong>D · Ativação sem tecla</strong>
+          <span>clique "de teclado" (detail 0) sem keydown antes: o OK foi tratado pelo sistema</span></div>
+        <div class="box"><b id="cnt-scroll">0</b><strong>E · Rolagem sem tecla</strong>
+          <span>a página rolou sem tecla registrada (rolagem feita pelo navegador)</span></div>
+        <div class="box"><b id="cnt-exit">0</b><strong>F · Saídas da página</strong>
+          <span>página oculta, janela sem foco, voltar no histórico</span></div>
+      </div>
+      <div class="verdict" id="verdict">Aperte teclas do controle para gerar uma conclusão.</div>
+
+      <h3 class="sub">Teste guiado (uma tecla por vez)</h3>
+      <div class="guide">
+        <p class="muted" style="margin-top:0">Inicie com o cursor ou o OK. A página pede uma tecla por vez e observa por
+          6 segundos o que ela gerou. <strong>Durante cada janela, aperte só a tecla pedida</strong>, uma vez, e não mexa
+          em mais nada. Voltar e Home ficam por último. Se a página fechar, abra de novo: o resultado fica salvo neste
+          navegador e você pode continuar.</p>
+        <div class="guide-prompt" id="guide-prompt">Pronto para começar</div>
+        <div class="guide-count" id="guide-count"></div>
+        <div class="btns">
+          <button type="button" class="primary" id="btn-guide-start">Iniciar teste guiado</button>
+          <button type="button" id="btn-guide-skip" disabled>Pular esta tecla</button>
+          <button type="button" id="btn-guide-cancel" disabled>Cancelar</button>
+        </div>
+        <table class="feat">
+          <thead><tr><th style="width:26%">Tecla pedida</th><th style="width:30%">Conclusão</th><th>Detalhes</th></tr></thead>
+          <tbody id="guide-body"></tbody>
+        </table>
+      </div>
+
+      <h3 class="sub">Campo de texto (opcional)</h3>
+      <p class="muted">Selecione o campo e aperte números e setas. Algumas TVs só entregam teclas a campos de texto.
+        Pode abrir o teclado virtual da TV; isso é esperado e não altera nada.</p>
+      <textarea id="test-input" placeholder="Campo de teste: selecione e aperte teclas do controle"></textarea>
+      <p class="muted" id="input-info">Campo: nenhum evento ainda.</p>
+
+      <h3 class="sub">Registro completo</h3>
       <div class="two">
         <div>
           <div class="keylog" id="keylog">
@@ -328,7 +418,7 @@
             <thead><tr><th>key</th><th>code</th><th>keyCode</th><th>vezes</th></tr></thead>
             <tbody id="unique-body"></tbody>
           </table>
-          <p class="muted" id="pointer-info">Ponteiro: nenhum movimento detectado.</p>
+          <p class="muted" id="pointer-info">Cursor: nenhum movimento detectado.</p>
         </div>
       </div>
     </section>
@@ -337,12 +427,16 @@
     <section class="card" id="sec-howto">
       <h2><span class="num">6</span>Como testar o controle</h2>
       <ol>
-        <li>Aperte <strong>cada tecla uma vez</strong>, devagar: setas, OK, números 0–9, teclas coloridas,
-          Play/Pausa, Avançar/Voltar, Canal +/−, Info/Menu.</li>
-        <li>Para cada tecla, veja se apareceu uma linha no registro. Se <strong>nada aparecer</strong>,
-          a tecla é usada pelo sistema e não chega à página. Anote isso também.</li>
-        <li>Se as setas moverem um <strong>cursor/ponteiro</strong> na tela em vez de gerar linhas,
-          o navegador está em modo ponteiro. O quadro “Ponteiro” mostra isso.</li>
+        <li>Prefira o <strong>Teste guiado</strong> da seção 5: ele pede uma tecla por vez e classifica o resultado
+          sozinho (chegou ao JavaScript, virou cursor, foco do sistema, rolagem, saiu da página ou foi interceptada).</li>
+        <li>Teste livre: aperte <strong>cada tecla uma vez</strong>, devagar: setas, OK, números 0–9, teclas coloridas,
+          Play/Pausa, Avançar/Voltar, Canal +/−, Info/Menu, e veja qual contador (A a F) subiu.</li>
+        <li>Se só o contador <strong>B</strong> subir, o navegador está em <strong>modo cursor</strong>: ele transforma o
+          controle em mouse e não entrega teclas à página. Se o navegador tiver uma opção de modo de navegação, teste os dois
+          modos e repita.</li>
+        <li>Se <strong>nenhum</strong> contador subir, a tecla foi interceptada pelo navegador ou pelo VIDAA antes da página.</li>
+        <li>Se “Página com foco” estiver <strong>não</strong>, as teclas estão indo para a barra de endereço ou para a
+          interface do navegador. Aperte “Dar foco à página” (ou clique em qualquer lugar da página) e teste de novo.</li>
         <li>Teste <strong>Voltar</strong> e <strong>Home</strong> por último: podem fechar a página ou o navegador.
           É só abrir a página de novo.</li>
         <li>Volume e Mudo normalmente são tratados pela TV e podem não aparecer. Isso é esperado.</li>
@@ -761,10 +855,18 @@
     if (document.hidden) fps.last = 0;
   });
 
-  // ---------- 5. teclado ----------
+  // ---------- 5. controle remoto ----------
+  // Princípio: só observar. Nenhum ouvinte chama preventDefault nem stopPropagation.
+  // Os ouvintes de teclado ficam na fase de CAPTURA da janela, que é o primeiro ponto
+  // em que o código de uma página recebe um evento. Se nada chega aqui, quem consumiu
+  // a tecla foi o navegador ou o VIDAA, não esta página.
   var MAX_LOG = 200;
   var unique = {};
-  var pointer = { moves: 0, clicks: 0, type: "", lastAt: "" };
+  var counts = { key: 0, ptrMove: 0, ptrClick: 0, sysFocus: 0, sysClick: 0, scroll: 0, exit: 0, input: 0 };
+  var last = { keyDown: 0, pointerDown: 0, pointerMove: 0, wheel: 0, winFocus: 0, ownFocus: 0, sysFocus: 0 };
+  var lastPtr = null;
+  var lastPointerLog = 0;
+  var seenKeyEvents = typeof WeakSet === "function" ? new WeakSet() : null;
 
   function addLogRow(cells, cls) {
     var tb = $("keylog-body");
@@ -778,22 +880,86 @@
     addLogRow([timeStamp(), "sistema", what, detail || "", ""], "ev-sys");
   }
   function show(v) { return v === undefined || v === null || v === "" ? "(vazio)" : (v === " " ? "(espaço)" : v); }
+  function describe(node) {
+    if (!node || node === document.body || node === document.documentElement) return "página (nenhum controle)";
+    var t = node.tagName ? node.tagName.toLowerCase() : "?";
+    if (node.id) t += "#" + node.id;
+    var label = (node.textContent || "").trim().slice(0, 32);
+    return label ? t + " “" + label + "”" : t;
+  }
 
+  // Registra um sinal: atualiza contadores e a observação do teste guiado, se houver.
+  function note(kind, info) {
+    if (kind === "key") counts.key++;
+    else if (kind === "ptrMove") counts.ptrMove++;
+    else if (kind === "ptrClick") counts.ptrClick++;
+    else if (kind === "sysFocus") counts.sysFocus++;
+    else if (kind === "sysClick") counts.sysClick++;
+    else if (kind === "scroll") counts.scroll++;
+    else if (kind === "exit") counts.exit++;
+    else if (kind === "input") counts.input++;
+    if (guide.phase === "listen" && guide.obs) guideObserve(kind, info);
+    renderCounters();
+  }
+
+  function renderCounters() {
+    $("cnt-key").textContent = counts.key;
+    $("cnt-ptr").textContent = counts.ptrMove + counts.ptrClick;
+    $("cnt-sysfocus").textContent = counts.sysFocus;
+    $("cnt-sysclick").textContent = counts.sysClick;
+    $("cnt-scroll").textContent = counts.scroll;
+    $("cnt-exit").textContent = counts.exit;
+    $("verdict").innerHTML = "";
+    var ul = el("ul");
+    verdictLines().forEach(function (l) { ul.appendChild(el("li", l)); });
+    $("verdict").appendChild(ul);
+  }
+
+  function verdictLines() {
+    var out = [];
+    var any = counts.key + counts.ptrMove + counts.ptrClick + counts.sysFocus + counts.sysClick + counts.scroll + counts.input;
+    if (!any) return ["Nenhum sinal ainda. Se você já apertou teclas e nada subiu, elas estão sendo interceptadas antes da página."];
+    if (counts.key) out.push("Teclas chegam ao JavaScript (" + counts.key + " eventos). Veja os keyCodes em “Teclas únicas”.");
+    else out.push("Nenhum evento de teclado chegou ao JavaScript.");
+    if (counts.ptrMove || counts.ptrClick) {
+      out.push(counts.key ?
+        "Também há cursor (" + counts.ptrMove + " movimentos, " + counts.ptrClick + " cliques)." :
+        "Só há cursor (" + counts.ptrMove + " movimentos, " + counts.ptrClick + " cliques): o navegador está em modo cursor e converte o controle em mouse.");
+    }
+    if (counts.sysFocus) out.push("O foco foi movido " + counts.sysFocus + " vez(es) sem tecla no JavaScript: navegação por foco gerenciada pelo navegador/VIDAA.");
+    if (counts.sysClick) out.push("Houve " + counts.sysClick + " ativação(ões) sem tecla registrada: o OK é tratado pelo sistema e vira clique.");
+    if (counts.scroll) out.push("A página rolou " + counts.scroll + " vez(es) sem tecla registrada: rolagem feita pelo navegador.");
+    if (counts.input) out.push("O campo de texto recebeu " + counts.input + " entrada(s) de texto.");
+    return out;
+  }
+
+  // --- teclado ---
   function onKey(e) {
-    // Apenas observa. Nunca chama preventDefault nem stopPropagation.
-    var type = e.type === "keydown" ? "keydown" + (e.repeat ? " (repetida)" : "") : "keyup";
-    addLogRow([timeStamp(), type, show(e.key), show(e.code), String(e.keyCode)], e.type === "keydown" ? "ev-down" : "ev-up");
+    if (seenKeyEvents) {
+      if (seenKeyEvents.has(e)) return;
+      seenKeyEvents.add(e);
+    }
+    var type = e.type + (e.repeat ? " (repetida)" : "");
+    var where = e.eventPhase === 1 ? "" : " [fora da captura]";
+    addLogRow([timeStamp(), type + where, show(e.key), show(e.code), String(e.keyCode)],
+      e.type === "keyup" ? "ev-up" : "ev-down");
+    note("key", { type: e.type, keyCode: e.keyCode, key: e.key });
     if (e.type !== "keydown") return;
+    last.keyDown = Date.now();
     $("last-key").textContent = show(e.key);
-    $("last-key-detail").textContent = "code: " + show(e.code) + " · keyCode: " + e.keyCode + " · which: " + e.which;
+    $("last-key-detail").textContent = "code: " + show(e.code) + " · keyCode: " + e.keyCode + " · alvo: " + describe(e.target);
     var id = e.key + "|" + e.code + "|" + e.keyCode;
     if (!unique[id]) unique[id] = { key: show(e.key), code: show(e.code), keyCode: e.keyCode, n: 0 };
     unique[id].n++;
     renderUnique();
     if (navEnabled) moveFocus(e);
   }
-  window.addEventListener("keydown", onKey, { passive: true });
-  window.addEventListener("keyup", onKey, { passive: true });
+  ["keydown", "keyup", "keypress"].forEach(function (t) {
+    window.addEventListener(t, onKey, true);
+    // Rede de segurança: se algum navegador não entregar na captura da janela,
+    // o ouvinte do document ainda registra (e a linha aparece marcada).
+    document.addEventListener(t, onKey, false);
+  });
 
   function renderUnique() {
     var tb = $("unique-body");
@@ -810,46 +976,138 @@
       });
   }
 
-  // Eventos do sistema que ajudam a entender Voltar/Home e o modo ponteiro.
-  document.addEventListener("visibilitychange", function () { logSystem("visibilidade", document.hidden ? "página oculta" : "página visível"); });
-  window.addEventListener("blur", function () { logSystem("janela", "perdeu o foco"); });
-  window.addEventListener("focus", function () { logSystem("janela", "recebeu o foco"); });
-  window.addEventListener("pagehide", function () { logSystem("página", "saindo"); });
-
-  var lastPointerLog = 0;
+  // --- ponteiro (modo cursor) ---
   function onPointer(e) {
+    var type = e.pointerType || "mouse";
     if (e.type === "pointermove" || e.type === "mousemove") {
-      pointer.moves++;
+      var step = lastPtr ? Math.round(Math.max(Math.abs(e.clientX - lastPtr.x), Math.abs(e.clientY - lastPtr.y))) : 0;
+      lastPtr = { x: e.clientX, y: e.clientY };
+      last.pointerMove = Date.now();
+      note("ptrMove", { step: step });
       var now = Date.now();
-      if (now - lastPointerLog > 2000) {
+      if (now - lastPointerLog > 1500) {
         lastPointerLog = now;
-        logSystem("ponteiro", "movimento (" + (e.pointerType || "mouse") + ") em " + Math.round(e.clientX) + "," + Math.round(e.clientY));
+        logSystem("cursor", "movimento (" + type + ") em " + Math.round(e.clientX) + "," + Math.round(e.clientY) + (step ? ", passo " + step + " px" : ""));
       }
     } else {
-      pointer.clicks++;
-      logSystem("clique", (e.pointerType || "mouse") + " em " + Math.round(e.clientX) + "," + Math.round(e.clientY));
+      last.pointerDown = Date.now();
+      note("ptrClick", {});
+      logSystem("cursor", "pressionado (" + type + ", botão " + e.button + ") em " + Math.round(e.clientX) + "," + Math.round(e.clientY));
     }
-    pointer.type = e.pointerType || "mouse";
-    pointer.lastAt = timeStamp();
-    $("pointer-info").textContent = "Ponteiro: " + pointer.moves + " movimentos, " + pointer.clicks +
-      " cliques (tipo: " + pointer.type + ", último às " + pointer.lastAt + ").";
+    $("pointer-info").textContent = "Cursor: " + counts.ptrMove + " movimentos, " + counts.ptrClick +
+      " cliques (tipo: " + type + ", último às " + timeStamp() + ").";
   }
   if (window.PointerEvent) {
-    window.addEventListener("pointermove", onPointer, { passive: true });
-    window.addEventListener("pointerdown", onPointer, { passive: true });
+    window.addEventListener("pointermove", onPointer, { capture: true, passive: true });
+    window.addEventListener("pointerdown", onPointer, { capture: true, passive: true });
   } else {
-    window.addEventListener("mousemove", onPointer, { passive: true });
-    window.addEventListener("mousedown", onPointer, { passive: true });
+    window.addEventListener("mousemove", onPointer, { capture: true, passive: true });
+    window.addEventListener("mousedown", onPointer, { capture: true, passive: true });
   }
+  window.addEventListener("wheel", function (e) {
+    last.wheel = Date.now();
+    logSystem("roda", "deltaY " + Math.round(e.deltaY));
+  }, { capture: true, passive: true });
+
+  // --- cliques: distingue cursor, tecla no JS e ativação feita pelo sistema ---
+  window.addEventListener("click", function (e) {
+    var sinceKey = Date.now() - last.keyDown;
+    var sincePtr = Date.now() - last.pointerDown;
+    if (e.detail === 0 && sinceKey > 600 && sincePtr > 600) {
+      note("sysClick", {});
+      logSystem("ativação", "clique sem tecla nem cursor em " + describe(e.target));
+    } else if (e.detail === 0) {
+      logSystem("ativação", "por tecla (Enter/OK visto no JS) em " + describe(e.target));
+    } else {
+      logSystem("clique", "do cursor em " + describe(e.target));
+    }
+  }, true);
+
+  // --- foco: distingue ação desta página, clique, tecla e sistema ---
+  function ownFocus(node, opts) {
+    last.ownFocus = Date.now();
+    node.focus(opts);
+  }
+  document.addEventListener("focusin", function (e) {
+    var now = Date.now();
+    var cause;
+    if (now - last.ownFocus < 300) cause = "pela página";
+    else if (now - last.pointerDown < 600) cause = "por clique do cursor";
+    else if (now - last.keyDown < 600) cause = "por tecla vista no JS";
+    else if (now - last.winFocus < 400) cause = "janela recuperou o foco";
+    else cause = "SISTEMA";
+    if (cause === "SISTEMA") { last.sysFocus = now; note("sysFocus", { target: describe(e.target) }); }
+    logSystem("foco", describe(e.target) + " (" + (cause === "SISTEMA" ? "movido pelo sistema" : cause) + ")");
+    renderFocusState();
+  }, true);
+
+  // --- rolagem sem tecla ---
+  // Uma rolagem contínua gera muitos eventos; agrupa tudo até 300 ms de silêncio.
+  var scrollTimer = null, scrollStarted = 0;
+  window.addEventListener("scroll", function () {
+    if (!scrollTimer) scrollStarted = Date.now();
+    clearTimeout(scrollTimer);
+    scrollTimer = setTimeout(function () {
+      scrollTimer = null;
+      var t = scrollStarted;
+      var explained = t - last.keyDown < 800 || t - last.wheel < 800 ||
+        t - last.ownFocus < 800 || t - last.pointerDown < 800;
+      // Rolagem que acompanha um foco movido pelo sistema já está contada em C.
+      if (t - last.sysFocus < 800) explained = true;
+      if (!explained) {
+        note("scroll", {});
+        logSystem("rolagem", "sem tecla registrada (posição " + Math.round(window.scrollY) + ")" +
+          (t - last.pointerMove < 800 ? ", cursor em movimento" : ""));
+      }
+    }, 300);
+  }, { capture: true, passive: true });
+
+  // --- saídas e estado da página ---
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) note("exit", { what: "oculta" });
+    logSystem("visibilidade", document.hidden ? "página oculta" : "página visível");
+    if (!document.hidden) guideResume();
+  });
+  window.addEventListener("blur", function () { note("exit", { what: "blur" }); logSystem("janela", "perdeu o foco"); renderFocusState(); });
+  window.addEventListener("focus", function () { last.winFocus = Date.now(); logSystem("janela", "recebeu o foco"); renderFocusState(); });
+  window.addEventListener("popstate", function () { note("exit", { what: "voltar" }); logSystem("histórico", "voltar/avançar (popstate)"); });
+  window.addEventListener("pagehide", function () { guideSave(); });
+
+  function renderFocusState() {
+    var has = document.hasFocus();
+    var fs = $("focus-state");
+    fs.textContent = has ? "sim" : "não";
+    fs.className = has ? "yes" : "no";
+    $("active-el").textContent = describe(document.activeElement);
+  }
+  renderFocusState();
+  setInterval(renderFocusState, 700);
+
+  // --- campo de texto ---
+  var input = $("test-input");
+  input.addEventListener("input", function (e) {
+    note("input", {});
+    var info = "input" + (e.inputType ? " (" + e.inputType + ")" : "") + (e.data ? " “" + e.data + "”" : "");
+    $("input-info").textContent = "Campo: " + info + " às " + timeStamp() + (Date.now() - last.keyDown > 600 ? " · sem keydown antes (texto inserido pelo sistema)" : "");
+    addLogRow([timeStamp(), "texto", e.data ? show(e.data) : "", e.inputType || "", ""], "ev-sys");
+  });
 
   $("btn-clear").addEventListener("click", function () {
     $("keylog-body").textContent = "";
     unique = {};
     renderUnique();
-    pointer = { moves: 0, clicks: 0, type: "", lastAt: "" };
-    $("pointer-info").textContent = "Ponteiro: nenhum movimento detectado.";
+    Object.keys(counts).forEach(function (k) { counts[k] = 0; });
+    lastPtr = null;
+    renderCounters();
+    $("pointer-info").textContent = "Cursor: nenhum movimento detectado.";
+    $("input-info").textContent = "Campo: nenhum evento ainda.";
     $("last-key").textContent = "nenhuma";
     $("last-key-detail").textContent = "";
+  });
+  $("btn-focus").addEventListener("click", function () {
+    try { window.focus(); } catch (e) {}
+    ownFocus(this);
+    renderFocusState();
   });
 
   // Mover foco com setas: escolhe o botão mais próximo na direção da seta.
@@ -864,10 +1122,12 @@
   function moveFocus(e) {
     var dir = DIRS[e.key] || DIR_CODES[e.keyCode];
     if (!dir) return;
-    var items = Array.prototype.slice.call(document.querySelectorAll("button"));
+    if (document.activeElement === input) return; // setas no campo de texto movem o cursor do texto
+    var items = Array.prototype.slice.call(document.querySelectorAll("button:not([disabled])"));
+    if (!items.length) return;
     var cur = document.activeElement;
     if (!cur || items.indexOf(cur) < 0) {
-      items[0].focus();
+      ownFocus(items[0]);
       items[0].scrollIntoView({ block: "center" });
       return;
     }
@@ -889,10 +1149,175 @@
       if (score < bestScore) { bestScore = score; best = it; }
     });
     if (best) {
-      best.focus();
+      ownFocus(best);
       best.scrollIntoView({ block: "nearest" });
     }
   }
+
+  // --- teste guiado ---
+  var STEPS = [
+    "Seta para CIMA", "Seta para BAIXO", "Seta para ESQUERDA", "Seta para DIREITA",
+    "OK (botão central)", "Número 1", "Tecla VERMELHA", "Tecla VERDE",
+    "Play / Pausa", "Canal +", "Info ou Menu",
+    "VOLTAR (pode fechar a página)", "HOME (sai do navegador; depois volte para esta página)"
+  ];
+  var PREP_MS = 2000, LISTEN_MS = 6000;
+  var GUIDE_KEY = "nexus-diag-guia";
+  var guide = { phase: "idle", idx: -1, endAt: 0, obs: null, results: [], timer: 0 };
+
+  function newObs() { return { keys: [], moves: 0, maxStep: 0, ptrClicks: 0, sysFocus: [], sysClick: 0, scroll: 0, exit: [], input: 0 }; }
+  function guideObserve(kind, info) {
+    var o = guide.obs;
+    if (kind === "key") { if (info.type === "keydown") o.keys.push(info.keyCode + (info.key ? " (" + info.key + ")" : "")); }
+    else if (kind === "ptrMove") { o.moves++; o.maxStep = Math.max(o.maxStep, info.step || 0); }
+    else if (kind === "ptrClick") o.ptrClicks++;
+    else if (kind === "sysFocus") o.sysFocus.push(info.target);
+    else if (kind === "sysClick") o.sysClick++;
+    else if (kind === "scroll") o.scroll++;
+    else if (kind === "exit") o.exit.push(info.what);
+    else if (kind === "input") o.input++;
+  }
+  function conclude(o) {
+    if (!o) return { c: "Sem observação", d: "" };
+    var d = [];
+    if (o.keys.length) d.push("keydown: " + o.keys.join(", "));
+    if (o.moves) d.push(o.moves + " movimentos do cursor (maior passo " + o.maxStep + " px)");
+    if (o.ptrClicks) d.push(o.ptrClicks + " clique(s) do cursor");
+    if (o.sysFocus.length) d.push("foco do sistema → " + o.sysFocus[o.sysFocus.length - 1]);
+    if (o.sysClick) d.push(o.sysClick + " ativação(ões) sem tecla");
+    if (o.scroll) d.push(o.scroll + " rolagem(ns) sem tecla");
+    if (o.input) d.push(o.input + " entrada(s) de texto");
+    if (o.exit.length) d.push("saída: " + o.exit.join(", "));
+    var c;
+    if (o.keys.length) c = "A · Chega ao JavaScript";
+    else if (o.moves) c = "B · Vira movimento do cursor";
+    else if (o.ptrClicks) c = "B · Vira clique do cursor";
+    else if (o.sysFocus.length) c = "C · Foco movido pelo sistema";
+    else if (o.sysClick) c = "D · Ativação feita pelo sistema";
+    else if (o.scroll) c = "E · Rolagem feita pelo navegador";
+    else if (o.input) c = "Texto inserido pelo sistema";
+    else if (o.exit.length) c = "F · Saiu ou ocultou a página";
+    else c = "Interceptada (nenhum sinal chegou)";
+    return { c: c, d: d.join(" · ") || "nenhum evento observado" };
+  }
+
+  function renderGuide() {
+    var tb = $("guide-body");
+    tb.textContent = "";
+    STEPS.forEach(function (s, i) {
+      var r = guide.results[i];
+      var tr = el("tr");
+      tr.appendChild(el("td", s));
+      tr.appendChild(el("td", r ? r.c : (i === guide.idx && guide.phase !== "idle" ? "testando…" : "–")));
+      tr.appendChild(el("td", r ? r.d : "", "detail"));
+      tb.appendChild(tr);
+    });
+    var active = guide.phase !== "idle";
+    $("btn-guide-start").disabled = active;
+    $("btn-guide-skip").disabled = !active;
+    $("btn-guide-cancel").disabled = !active;
+  }
+
+  function guideSave() {
+    try {
+      localStorage.setItem(GUIDE_KEY, JSON.stringify({
+        pending: guide.phase === "listen" || guide.phase === "prep" ? guide.idx : null,
+        results: guide.results
+      }));
+    } catch (e) {}
+  }
+  function guideLoad() {
+    try {
+      var raw = localStorage.getItem(GUIDE_KEY);
+      if (!raw) return;
+      var st = JSON.parse(raw);
+      guide.results = st.results || [];
+      if (typeof st.pending === "number") {
+        // A página foi fechada ou recarregada durante esta tecla.
+        guide.results[st.pending] = { c: "F · Saiu da página ou do navegador", d: "a página foi reaberta depois desta tecla" };
+        guide.idx = st.pending;
+        guideSave();
+        if (st.pending + 1 < STEPS.length) {
+          $("guide-prompt").textContent = "Teste interrompido em: " + STEPS[st.pending];
+          $("guide-count").textContent = "Aperte “Iniciar teste guiado” para continuar da próxima tecla.";
+          guide.resumeFrom = st.pending + 1;
+        } else {
+          $("guide-prompt").textContent = "Teste guiado concluído";
+        }
+      }
+    } catch (e) {}
+  }
+
+  function guideStep(i) {
+    if (i >= STEPS.length) { guideFinish(); return; }
+    guide.idx = i;
+    guide.phase = "prep";
+    guide.obs = null;
+    guide.endAt = Date.now() + PREP_MS;
+    $("guide-prompt").textContent = "Prepare-se: " + STEPS[i];
+    guideSave();
+    renderGuide();
+  }
+  function guideTick() {
+    var now = Date.now();
+    if (guide.phase === "prep") {
+      $("guide-count").textContent = "Começa em " + Math.ceil((guide.endAt - now) / 1000) + " s. Não aperte nada ainda.";
+      if (now >= guide.endAt) {
+        guide.phase = "listen";
+        guide.obs = newObs();
+        guide.endAt = now + LISTEN_MS;
+        $("guide-prompt").textContent = "Aperte agora: " + STEPS[guide.idx];
+        guideSave();
+      }
+    } else if (guide.phase === "listen") {
+      $("guide-count").textContent = "Observando… " + Math.max(0, Math.ceil((guide.endAt - now) / 1000)) + " s (tecla " + (guide.idx + 1) + " de " + STEPS.length + ")";
+      if (now >= guide.endAt && !document.hidden) guideEndStep(false);
+    }
+  }
+  function guideEndStep(skipped) {
+    var r = conclude(guide.obs);
+    if (skipped && r.c.indexOf("Interceptada") === 0) r = { c: "Pulada", d: "" };
+    guide.results[guide.idx] = r;
+    guideStep(guide.idx + 1);
+  }
+  function guideResume() {
+    // Voltando de Home/Voltar: se a janela já passou, fecha a tecla com o que foi observado.
+    if (guide.phase === "listen" && Date.now() >= guide.endAt) guideEndStep(false);
+  }
+  function guideFinish() {
+    guide.phase = "idle";
+    guide.obs = null;
+    clearInterval(guide.timer);
+    $("guide-prompt").textContent = "Teste guiado concluído";
+    $("guide-count").textContent = "Fotografe a tabela abaixo ou use o Resumo para foto.";
+    guideSave();
+    renderGuide();
+  }
+  $("btn-guide-start").addEventListener("click", function () {
+    var from = guide.resumeFrom || 0;
+    guide.resumeFrom = 0;
+    if (!from) guide.results = [];
+    clearInterval(guide.timer);
+    guide.timer = setInterval(guideTick, 200);
+    guideStep(from);
+  });
+  $("btn-guide-skip").addEventListener("click", function () {
+    if (guide.phase === "idle") return;
+    guideEndStep(true);
+  });
+  $("btn-guide-cancel").addEventListener("click", function () {
+    guide.phase = "idle";
+    guide.obs = null;
+    clearInterval(guide.timer);
+    $("guide-prompt").textContent = "Teste guiado cancelado";
+    $("guide-count").textContent = "";
+    guideSave();
+    renderGuide();
+  });
+
+  guideLoad();
+  renderGuide();
+  renderCounters();
 
   // ---------- 8. resumo ----------
   function summarize() {
@@ -916,7 +1341,22 @@
     lines.push("Teclas recebidas (" + keys.length + "):");
     if (!keys.length) lines.push("  nenhuma");
     keys.forEach(function (u) { lines.push("  keyCode " + u.keyCode + " · key " + u.key + " · code " + u.code); });
-    lines.push("Ponteiro: " + pointer.moves + " movimentos, " + pointer.clicks + " cliques");
+    lines.push("");
+    lines.push("Sinais: A teclas " + counts.key + " · B cursor " + counts.ptrMove + " mov./" + counts.ptrClick + " cliques · C foco sistema " +
+      counts.sysFocus + " · D ativação sem tecla " + counts.sysClick + " · E rolagem sem tecla " + counts.scroll + " · F saídas " + counts.exit +
+      " · texto " + counts.input);
+    lines.push("Página com foco: " + (document.hasFocus() ? "sim" : "não"));
+    verdictLines().forEach(function (l) { lines.push("  → " + l); });
+    lines.push("");
+    lines.push("Teste guiado:");
+    var anyGuide = false;
+    STEPS.forEach(function (s, i) {
+      var r = guide.results[i];
+      if (!r) return;
+      anyGuide = true;
+      lines.push("  " + s + ": " + r.c + (r.d ? " (" + r.d + ")" : ""));
+    });
+    if (!anyGuide) lines.push("  não executado");
     $("summary").textContent = lines.join("\n");
   }
   $("btn-summary").addEventListener("click", summarize);
@@ -924,7 +1364,7 @@
   // Foco inicial no primeiro botão para quem navega com o controle.
   setTimeout(function () {
     var first = document.querySelector("button");
-    if (first) first.focus({ preventScroll: true });
+    if (first) ownFocus(first, { preventScroll: true });
   }, 300);
 })();
 </script>
