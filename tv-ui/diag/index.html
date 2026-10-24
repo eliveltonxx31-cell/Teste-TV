@@ -1,0 +1,932 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Política restritiva: nada é carregado de fora e nenhuma conexão sai para terceiros.
+     connect-src 'self' permite apenas o teste de fetch na própria origem. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src data:; connect-src 'self'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
+<title>NEXUS TV · Diagnóstico</title>
+<style>
+  /*
+   * Compatibilidade: alvo Chromium 111 (navegador VIDAA).
+   * Sem CSS nesting (Chrome 112+), sem subgrid, sem popover.
+   * Unidade base: 1rem = 20px numa tela de 1920px de largura.
+   */
+  :root {
+    --bg: #05070d;
+    --bg-2: #0b1020;
+    --card: #10172b;
+    --card-2: #151e38;
+    --line: #23305a;
+    --text: #eef2ff;
+    --muted: #9aa6c7;
+    --accent: #2f7bff;
+    --accent-2: #5ea1ff;
+    --ok: #2fd27a;
+    --no: #ff5d6c;
+    --warn: #ffbf47;
+    --na: #8b93ad;
+    --radius: 0.9rem;
+  }
+  * { box-sizing: border-box; }
+  html {
+    font-size: max(12px, calc(100vw / 96));
+    background: var(--bg);
+  }
+  body {
+    margin: 0;
+    color: var(--text);
+    background:
+      radial-gradient(60rem 30rem at 85% -10%, rgba(47, 123, 255, 0.22), transparent 60%),
+      linear-gradient(180deg, var(--bg-2), var(--bg) 40rem);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 1.2rem;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Margem de segurança (~5%) para TVs com overscan. */
+  .page { padding: 2.5rem 4.8rem 4rem; max-width: 96rem; margin: 0 auto; }
+
+  header.top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 2rem;
+    margin-bottom: 2rem;
+  }
+  .brand { display: flex; align-items: center; gap: 1rem; }
+  .logo {
+    width: 3.2rem; height: 3.2rem; border-radius: 0.8rem;
+    background: linear-gradient(135deg, var(--accent), #7a5cff);
+    box-shadow: 0 0 1.6rem rgba(47, 123, 255, 0.55);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 1.6rem;
+  }
+  h1 { margin: 0; font-size: 2.1rem; letter-spacing: 0.02em; }
+  h1 small { display: block; font-size: 1.05rem; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+  .clock { font-size: 2rem; font-variant-numeric: tabular-nums; color: var(--accent-2); }
+
+  .notice {
+    background: rgba(47, 123, 255, 0.1);
+    border: 1px solid rgba(47, 123, 255, 0.4);
+    border-radius: var(--radius);
+    padding: 0.9rem 1.3rem;
+    color: #cfe0ff;
+    margin-bottom: 1.8rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.6rem;
+  }
+  .span-2 { grid-column: 1 / -1; }
+
+  section.card {
+    background: linear-gradient(180deg, var(--card-2), var(--card));
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.5rem 1.7rem;
+    min-width: 0;
+  }
+  section.card h2 {
+    margin: 0 0 1rem;
+    font-size: 1.5rem;
+    display: flex; align-items: center; gap: 0.7rem;
+  }
+  section.card h2 .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2rem; height: 2rem; border-radius: 50%;
+    background: var(--accent); font-size: 1.05rem;
+  }
+  p { margin: 0.4rem 0 0.8rem; }
+  .muted { color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td {
+    text-align: left; vertical-align: top;
+    padding: 0.5rem 0.6rem;
+    border-bottom: 1px solid rgba(35, 48, 90, 0.7);
+  }
+  th { color: var(--muted); font-weight: 600; width: 40%; }
+  td { font-variant-numeric: tabular-nums; word-break: break-word; }
+  .mono { font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, "Liberation Mono", monospace; font-size: 1.05rem; }
+
+  .badge {
+    display: inline-block;
+    min-width: 8.5rem;
+    text-align: center;
+    padding: 0.15rem 0.7rem;
+    border-radius: 999px;
+    font-size: 1rem; font-weight: 700;
+    border: 1px solid currentColor;
+  }
+  .b-ok { color: var(--ok); background: rgba(47, 210, 122, 0.1); }
+  .b-no { color: var(--no); background: rgba(255, 93, 108, 0.1); }
+  .b-warn { color: var(--warn); background: rgba(255, 191, 71, 0.1); }
+  .b-na { color: var(--na); background: rgba(139, 147, 173, 0.12); }
+  .b-manual { color: var(--accent-2); background: rgba(94, 161, 255, 0.1); }
+  .legend { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-bottom: 1rem; }
+  .feat td:nth-child(2) { width: 11rem; }
+  .feat td:first-child { font-weight: 600; }
+  .feat .detail { color: var(--muted); font-size: 1rem; }
+
+  .btns { display: flex; flex-wrap: wrap; gap: 1rem; margin: 0.6rem 0 1rem; }
+  button {
+    font: inherit; font-weight: 700;
+    color: var(--text);
+    background: #1a2550;
+    border: 2px solid #2b3c7a;
+    border-radius: 0.7rem;
+    padding: 0.7rem 1.4rem;
+    cursor: pointer;
+    transition: transform 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
+  }
+  button:hover { background: #22306a; }
+  /* Foco bem visível a distância: tanto :focus quanto :focus-visible,
+     porque alguns navegadores de TV não aplicam :focus-visible com o controle. */
+  button:focus, button:focus-visible {
+    outline: 0.25rem solid var(--accent-2);
+    outline-offset: 0.25rem;
+    background: var(--accent);
+    border-color: var(--accent-2);
+    transform: scale(1.05);
+  }
+  button.primary { background: var(--accent); border-color: var(--accent-2); }
+
+  /* Teste de FPS */
+  .track {
+    position: relative;
+    height: 6rem;
+    border-radius: 0.8rem;
+    background: repeating-linear-gradient(90deg, #0d1430 0 2rem, #0f173a 2rem 4rem);
+    border: 1px solid var(--line);
+    overflow: hidden;
+    margin-bottom: 1rem;
+  }
+  .ball {
+    position: absolute; top: 1rem; left: 0;
+    width: 4rem; height: 4rem; border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, #b9d4ff, var(--accent) 60%);
+    box-shadow: 0 0 1.4rem rgba(47, 123, 255, 0.8);
+    will-change: transform;
+  }
+  .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1rem; }
+  .stat { background: #0c1328; border: 1px solid var(--line); border-radius: 0.7rem; padding: 0.7rem 1rem; }
+  .stat b { display: block; font-size: 2rem; font-variant-numeric: tabular-nums; color: var(--accent-2); }
+  .stat span { color: var(--muted); font-size: 1rem; }
+
+  /* Registro de teclas */
+  .keylog {
+    height: 22rem;
+    overflow-y: auto;
+    background: #070b18;
+    border: 1px solid var(--line);
+    border-radius: 0.7rem;
+  }
+  .keylog table { font-size: 1.05rem; }
+  .keylog thead th {
+    position: sticky; top: 0;
+    background: #0e1530;
+    width: auto;
+  }
+  .keylog tbody tr:first-child td { background: rgba(47, 123, 255, 0.16); }
+  .ev-down { color: var(--ok); }
+  .ev-up { color: var(--muted); }
+  .ev-sys { color: var(--warn); }
+  .last-key {
+    display: flex; gap: 1.2rem; align-items: center; flex-wrap: wrap;
+    background: #0c1328; border: 1px solid var(--line); border-radius: 0.7rem;
+    padding: 0.8rem 1.1rem; margin-bottom: 1rem;
+  }
+  .last-key b { font-size: 1.8rem; color: var(--accent-2); }
+  .two { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1.4rem; }
+  .summary-box {
+    background: #070b18; border: 1px solid var(--line); border-radius: 0.7rem;
+    padding: 1rem 1.2rem; white-space: pre-wrap; margin: 0;
+  }
+  ol, ul { margin: 0.4rem 0 0.8rem; padding-left: 1.6rem; }
+  li { margin: 0.25rem 0; }
+  code {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    background: #0a1230; border: 1px solid var(--line);
+    padding: 0.05rem 0.4rem; border-radius: 0.35rem; font-size: 0.95em;
+  }
+  footer { margin-top: 2rem; color: var(--muted); font-size: 1rem; text-align: center; }
+
+  /* Telas estreitas (ex.: iPhone em pé): uma coluna. */
+  @media (max-width: 900px) {
+    html { font-size: 14px; }
+    .page { padding: 1.2rem 1rem 2rem; }
+    .grid, .two { grid-template-columns: minmax(0, 1fr); }
+    .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    header.top { flex-wrap: wrap; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    button { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">N</div>
+      <h1>NEXUS TV <small>Diagnóstico · Fase 0 · v0.1</small></h1>
+    </div>
+    <div class="clock" id="clock">--:--:--</div>
+  </header>
+
+  <div class="notice">
+    Esta página só <strong>lê</strong> informações do navegador. Ela não envia dados para nenhum servidor,
+    não usa rastreamento, não pede permissões e não altera a TV. As teclas do controle
+    <strong>não são bloqueadas</strong>: Voltar e Home podem sair da página normalmente.
+  </div>
+
+  <div class="grid">
+
+    <!-- 1. Tela -->
+    <section class="card" id="sec-screen">
+      <h2><span class="num">1</span>Tela e viewport</h2>
+      <table id="screen-table"><tbody></tbody></table>
+      <p class="muted">Os valores são atualizados automaticamente quando a janela muda de tamanho.</p>
+    </section>
+
+    <!-- 2. Navegador -->
+    <section class="card" id="sec-browser">
+      <h2><span class="num">2</span>Navegador</h2>
+      <table id="browser-table"><tbody></tbody></table>
+    </section>
+
+    <!-- 3. Recursos -->
+    <section class="card span-2" id="sec-features">
+      <h2><span class="num">3</span>Recursos suportados</h2>
+      <div class="legend">
+        <span class="badge b-ok">Suportado</span>
+        <span class="badge b-warn">Parcial</span>
+        <span class="badge b-no">Não suportado</span>
+        <span class="badge b-manual">Teste manual</span>
+        <span class="badge b-na">Não testável</span>
+      </div>
+      <table class="feat" id="feat-table"><tbody></tbody></table>
+      <div class="btns">
+        <button type="button" id="btn-fs">Testar tela cheia</button>
+        <button type="button" id="btn-recheck">Testar recursos de novo</button>
+      </div>
+      <p class="muted" id="fs-result">Tela cheia: ainda não testada nesta sessão.</p>
+    </section>
+
+    <!-- 4. FPS -->
+    <section class="card span-2" id="sec-fps">
+      <h2><span class="num">4</span>Teste de animação (FPS)</h2>
+      <p class="muted">Anima uma esfera com <code>transform</code> (o mesmo tipo de animação que a interface vai usar)
+        e mede quantos quadros por segundo o navegador consegue desenhar.</p>
+      <div class="track"><div class="ball" id="ball"></div></div>
+      <div class="btns">
+        <button type="button" class="primary" id="btn-fps-start">Iniciar teste</button>
+        <button type="button" id="btn-fps-stop">Parar teste</button>
+      </div>
+      <div class="stats">
+        <div class="stat"><b id="fps-now">–</b><span>FPS atual</span></div>
+        <div class="stat"><b id="fps-avg">–</b><span>FPS médio</span></div>
+        <div class="stat"><b id="fps-min">–</b><span>Pior segundo</span></div>
+        <div class="stat"><b id="fps-long">–</b><span>Quadros &gt; 50 ms</span></div>
+      </div>
+      <p class="muted" id="fps-status">Parado. Deixe rodar pelo menos 10 segundos para um resultado estável.</p>
+    </section>
+
+    <!-- 5. Controle remoto -->
+    <section class="card span-2" id="sec-keys">
+      <h2><span class="num">5</span>Controle remoto: teclas recebidas</h2>
+      <div class="last-key">
+        <span class="muted">Última tecla:</span>
+        <b id="last-key">nenhuma</b>
+        <span class="mono" id="last-key-detail"></span>
+      </div>
+      <div class="btns">
+        <button type="button" id="btn-clear">Limpar registros</button>
+        <button type="button" id="btn-nav">Mover foco com setas: ligado</button>
+      </div>
+      <div class="two">
+        <div>
+          <div class="keylog" id="keylog">
+            <table>
+              <thead><tr><th>Horário</th><th>Evento</th><th>key</th><th>code</th><th>keyCode</th></tr></thead>
+              <tbody id="keylog-body"></tbody>
+            </table>
+          </div>
+          <p class="muted">Mais recente no topo. Guarda os últimos 200 eventos. Também registra eventos do sistema
+            (página oculta/visível, perda de foco, mudança de tamanho, cliques/ponteiro).</p>
+        </div>
+        <div>
+          <h3 style="margin:0 0 0.6rem;font-size:1.25rem;">Teclas únicas</h3>
+          <table class="mono" id="unique-table">
+            <thead><tr><th>key</th><th>code</th><th>keyCode</th><th>vezes</th></tr></thead>
+            <tbody id="unique-body"></tbody>
+          </table>
+          <p class="muted" id="pointer-info">Ponteiro: nenhum movimento detectado.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Instruções do controle -->
+    <section class="card" id="sec-howto">
+      <h2><span class="num">6</span>Como testar o controle</h2>
+      <ol>
+        <li>Aperte <strong>cada tecla uma vez</strong>, devagar: setas, OK, números 0–9, teclas coloridas,
+          Play/Pausa, Avançar/Voltar, Canal +/−, Info/Menu.</li>
+        <li>Para cada tecla, veja se apareceu uma linha no registro. Se <strong>nada aparecer</strong>,
+          a tecla é usada pelo sistema e não chega à página. Anote isso também.</li>
+        <li>Se as setas moverem um <strong>cursor/ponteiro</strong> na tela em vez de gerar linhas,
+          o navegador está em modo ponteiro. O quadro “Ponteiro” mostra isso.</li>
+        <li>Teste <strong>Voltar</strong> e <strong>Home</strong> por último: podem fechar a página ou o navegador.
+          É só abrir a página de novo.</li>
+        <li>Volume e Mudo normalmente são tratados pela TV e podem não aparecer. Isso é esperado.</li>
+        <li>Ao terminar, vá até a seção <strong>Resumo para foto</strong> e fotografe a tela com o iPhone.
+          Fotografe também a tabela “Teclas únicas”.</li>
+      </ol>
+      <p class="muted">“Mover foco com setas” só muda qual botão está destacado. A tecla continua indo
+        para o navegador normalmente; nada é bloqueado.</p>
+    </section>
+
+    <!-- 7. Publicação -->
+    <section class="card" id="sec-publish">
+      <h2><span class="num">7</span>Como publicar e abrir na TV</h2>
+      <p class="muted">Feito manualmente por você no Safari do iPhone. Esta página não configura nada.</p>
+      <ol>
+        <li>No Safari, entre em <code>dash.cloudflare.com</code> e acesse <strong>Workers &amp; Pages</strong>.</li>
+        <li>Crie um projeto <strong>Pages</strong> conectado ao Git e autorize o acesso ao repositório
+          privado <code>Teste-TV</code>.</li>
+        <li>Branch: <code>claude/hisense-android-feasibility-gjuulq</code>. Predefinição de framework:
+          <strong>Nenhuma</strong>. Comando de build: <strong>vazio</strong>. Diretório de saída:
+          <code>tv-ui</code>.</li>
+        <li>Publique. O painel mostra o endereço, no formato <code>https://&lt;projeto&gt;.pages.dev</code>.
+          Esta página fica em <code>/diag/</code>.</li>
+        <li>Na TV, abra o <strong>navegador</strong>, digite o endereço completo terminando em
+          <code>/diag/</code> e salve nos favoritos.</li>
+        <li>Depois de cada atualização no GitHub, o Cloudflare publica de novo. Basta recarregar na TV.</li>
+      </ol>
+      <p class="muted">Os nomes dos menus do Cloudflare podem mudar. Se algo estiver diferente, siga o que o painel mostrar
+        para um site estático sem build.</p>
+    </section>
+
+    <!-- 8. Resumo -->
+    <section class="card span-2" id="sec-summary">
+      <h2><span class="num">8</span>Resumo para foto</h2>
+      <div class="btns">
+        <button type="button" class="primary" id="btn-summary">Atualizar resumo</button>
+      </div>
+      <pre class="summary-box mono" id="summary">Aperte “Atualizar resumo” depois de testar as teclas e o FPS.</pre>
+    </section>
+
+  </div>
+
+  <footer>NEXUS TV · página de diagnóstico local · nenhum dado sai deste navegador</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------- utilidades ----------
+  function $(id) { return document.getElementById(id); }
+  function pad(n, w) { return String(n).padStart(w || 2, "0"); }
+  function timeStamp(d) {
+    d = d || new Date();
+    return pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds()) + "." + pad(d.getMilliseconds(), 3);
+  }
+  function el(tag, text, cls) {
+    var e = document.createElement(tag);
+    if (text !== undefined && text !== null) e.textContent = String(text);
+    if (cls) e.className = cls;
+    return e;
+  }
+  function row(tbody, label, value, mono) {
+    var tr = el("tr");
+    tr.appendChild(el("th", label));
+    tr.appendChild(el("td", value, mono ? "mono" : ""));
+    tbody.appendChild(tr);
+  }
+
+  var BADGE = {
+    ok: ["b-ok", "Suportado"],
+    warn: ["b-warn", "Parcial"],
+    no: ["b-no", "Não suportado"],
+    manual: ["b-manual", "Teste manual"],
+    na: ["b-na", "Não testável"]
+  };
+  var featureResults = [];
+
+  // ---------- relógio ----------
+  function tickClock() {
+    var d = new Date();
+    $("clock").textContent = pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  // ---------- 1. tela ----------
+  function renderScreen() {
+    var tb = $("screen-table").tBodies[0];
+    tb.textContent = "";
+    var s = window.screen || {};
+    var vv = window.visualViewport;
+    var dpr = window.devicePixelRatio || 1;
+    row(tb, "Viewport (innerWidth × innerHeight)", window.innerWidth + " × " + window.innerHeight + " px CSS");
+    row(tb, "Área do documento (clientWidth × clientHeight)",
+      document.documentElement.clientWidth + " × " + document.documentElement.clientHeight + " px CSS");
+    row(tb, "Visual viewport", vv ? Math.round(vv.width) + " × " + Math.round(vv.height) + " (escala " + vv.scale + ")" : "API indisponível");
+    row(tb, "devicePixelRatio", dpr);
+    row(tb, "Viewport em pixels físicos (estimado)", Math.round(window.innerWidth * dpr) + " × " + Math.round(window.innerHeight * dpr));
+    row(tb, "Tela (screen.width × height)", s.width + " × " + s.height);
+    row(tb, "Resolução disponível (availWidth × availHeight)", s.availWidth + " × " + s.availHeight);
+    row(tb, "Profundidade de cor", (s.colorDepth || "?") + " bits");
+    row(tb, "Orientação", s.orientation && s.orientation.type ? s.orientation.type : "não informada");
+    row(tb, "Base da interface (1rem)", getComputedStyle(document.documentElement).fontSize);
+  }
+  renderScreen();
+  var resizeTimer = null;
+  window.addEventListener("resize", function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(renderScreen, 150);
+    logSystem("resize", window.innerWidth + "×" + window.innerHeight);
+  });
+
+  // ---------- 2. navegador ----------
+  function chromeVersion() {
+    var m = navigator.userAgent.match(/Chrom(?:e|ium)\/(\d+)/);
+    return m ? m[1] : null;
+  }
+  function webglInfo() {
+    try {
+      var c = document.createElement("canvas");
+      var gl = c.getContext("webgl") || c.getContext("experimental-webgl");
+      if (!gl) return { ok: false, text: "WebGL indisponível" };
+      var ext = gl.getExtension("WEBGL_debug_renderer_info");
+      var vendor = ext ? gl.getParameter(ext.UNMASKED_VENDOR_WEBGL) : gl.getParameter(gl.VENDOR);
+      var renderer = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+      var lose = gl.getExtension("WEBGL_lose_context");
+      if (lose) lose.loseContext();
+      return { ok: true, text: vendor + " · " + renderer };
+    } catch (e) {
+      return { ok: false, text: "Erro: " + e.message };
+    }
+  }
+  function renderBrowser() {
+    var tb = $("browser-table").tBodies[0];
+    tb.textContent = "";
+    var tz = "?";
+    try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) {}
+    row(tb, "User-Agent", navigator.userAgent, true);
+    row(tb, "Versão Chromium detectada", chromeVersion() || "não identificada");
+    row(tb, "Plataforma", navigator.platform || "não informada");
+    row(tb, "Idiomas", (navigator.languages || [navigator.language]).join(", "));
+    row(tb, "Fuso horário", tz);
+    row(tb, "Núcleos lógicos (hardwareConcurrency)", navigator.hardwareConcurrency || "não informado");
+    row(tb, "Memória aproximada (deviceMemory)", navigator.deviceMemory ? navigator.deviceMemory + " GB" : "não informada");
+    row(tb, "GPU (WebGL)", webglInfo().text, true);
+    row(tb, "Online", navigator.onLine ? "sim" : "não");
+    row(tb, "Contexto seguro (HTTPS)", window.isSecureContext ? "sim" : "não");
+    row(tb, "Endereço da página", location.protocol + "//" + location.host + location.pathname, true);
+  }
+  renderBrowser();
+
+  // ---------- 3. recursos ----------
+  function supportsCss(prop, value) {
+    try { return !!(window.CSS && CSS.supports && CSS.supports(prop, value)); } catch (e) { return false; }
+  }
+  function supportsSelector(sel) {
+    try { return !!(window.CSS && CSS.supports && CSS.supports("selector(" + sel + ")")); } catch (e) { return false; }
+  }
+  function flexGapWorks() {
+    var box = document.createElement("div");
+    box.style.cssText = "display:flex;flex-direction:column;row-gap:1px;position:absolute;visibility:hidden;";
+    box.appendChild(document.createElement("div"));
+    box.appendChild(document.createElement("div"));
+    document.body.appendChild(box);
+    var ok = box.scrollHeight === 1;
+    document.body.removeChild(box);
+    return ok;
+  }
+  function hasSelectorMatches() {
+    // Confirma que :has() funciona de fato, além de CSS.supports.
+    try {
+      var box = document.createElement("div");
+      box.innerHTML = "<p><span></span></p>";
+      return box.querySelector("p:has(span)") !== null;
+    } catch (e) { return false; }
+  }
+  function storageTest(kind) {
+    try {
+      var st = window[kind];
+      if (!st) return { s: "no", d: "API ausente" };
+      var k = "__nexus_diag_test__";
+      st.setItem(k, "1");
+      var ok = st.getItem(k) === "1";
+      st.removeItem(k);
+      return ok ? { s: "ok", d: "leitura e escrita funcionando" } : { s: "no", d: "valor não foi lido de volta" };
+    } catch (e) {
+      return { s: "no", d: "bloqueado: " + e.name };
+    }
+  }
+  function visitsCounter() {
+    try {
+      var k = "nexus-diag-visitas";
+      var n = parseInt(localStorage.getItem(k) || "0", 10) + 1;
+      localStorage.setItem(k, String(n));
+      return n;
+    } catch (e) { return null; }
+  }
+  var visits = visitsCounter();
+
+  function videoTests() {
+    var v = document.createElement("video");
+    if (!v.canPlayType) return [{ name: "Vídeo HTML5 (<video>)", s: "no", d: "elemento <video> sem canPlayType" }];
+    function cp(t) { var r = v.canPlayType(t); return r === "" ? "não" : r; }
+    function st(r) { return r === "probably" ? "ok" : (r === "maybe" ? "warn" : "no"); }
+    var codecs = [
+      ["MP4 · H.264", 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"'],
+      ["MP4 · HEVC/H.265", 'video/mp4; codecs="hvc1.1.6.L93.B0"'],
+      ["WebM · VP9", 'video/webm; codecs="vp9"'],
+      ["MP4 · AV1", 'video/mp4; codecs="av01.0.05M.08"'],
+      ["HLS nativo (.m3u8)", "application/vnd.apple.mpegurl"]
+    ];
+    var out = [{ name: "Vídeo HTML5 (<video>)", s: "ok", d: "elemento disponível" }];
+    codecs.forEach(function (c) {
+      var r = cp(c[1]);
+      out.push({ name: "  Codec " + c[0], s: st(r), d: "canPlayType: " + r });
+    });
+    var mse = window.MediaSource || window.WebKitMediaSource;
+    if (mse && mse.isTypeSupported) {
+      var h = mse.isTypeSupported('video/mp4; codecs="avc1.42E01E"');
+      out.push({ name: "  Media Source Extensions", s: h ? "ok" : "warn", d: h ? "H.264 aceito (usado por players HLS/DASH em JS)" : "API presente, H.264 não aceito" });
+    } else {
+      out.push({ name: "  Media Source Extensions", s: "no", d: "API ausente" });
+    }
+    out.push({
+      name: "  DRM (EME)",
+      s: "na",
+      d: (navigator.requestMediaKeySystemAccess ? "API presente; " : "API ausente; ") + "suporte real a DRM exige licença e não é testado aqui"
+    });
+    out.push({ name: "  Reprodução real de vídeo", s: "na", d: "não testada: a página não carrega arquivos de mídia" });
+    return out;
+  }
+
+  function fullscreenInfo() {
+    var root = document.documentElement;
+    var api = root.requestFullscreen ? "padrão" : (root.webkitRequestFullscreen ? "webkit" : null);
+    var enabled = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+    if (!api) return { s: "no", d: "API ausente" };
+    if (!enabled) return { s: "warn", d: "API presente (" + api + "), mas fullscreenEnabled = false" };
+    return { s: "manual", d: "API presente (" + api + "). Use o botão “Testar tela cheia” para confirmar" };
+  }
+
+  function collectFeatures() {
+    var f = [];
+    var ls = storageTest("localStorage");
+    f.push({ name: "localStorage", s: ls.s, d: ls.d });
+    f.push({
+      name: "  Persistência entre recargas",
+      s: visits === null ? "no" : (visits > 1 ? "ok" : "manual"),
+      d: visits === null ? "não foi possível gravar" :
+        "visitas registradas neste navegador: " + visits + (visits > 1 ? "" : ". Recarregue a página para confirmar")
+    });
+    f.push({ name: "  Persistência após desligar a TV", s: "manual", d: "desligue e ligue a TV, abra a página e veja se o número de visitas continuou subindo" });
+    var ss = storageTest("sessionStorage");
+    f.push({ name: "sessionStorage", s: ss.s, d: ss.d });
+    f.push({ name: "IndexedDB", s: window.indexedDB ? "ok" : "no", d: window.indexedDB ? "API presente (não aberto)" : "API ausente" });
+
+    f.push({ name: "fetch", s: typeof window.fetch === "function" ? "ok" : "no", d: typeof window.fetch === "function" ? "API presente" : "API ausente" });
+    f.push({ name: "  Requisição na própria origem", s: "na", d: "verificando…", id: "fetch-live" });
+
+    videoTests().forEach(function (v) { f.push(v); });
+
+    var fs = fullscreenInfo();
+    f.push({ name: "Fullscreen API", s: fs.s, d: fs.d });
+
+    f.push({ name: "CSS Grid", s: supportsCss("display", "grid") ? "ok" : "no", d: "display: grid" });
+    var flex = supportsCss("display", "flex");
+    var gap = flex && flexGapWorks();
+    f.push({ name: "CSS Flexbox", s: flex ? (gap ? "ok" : "warn") : "no", d: flex ? (gap ? "display: flex e gap funcionando" : "display: flex sim, gap não") : "display: flex" });
+    var hasS = supportsSelector(":has(*)");
+    var hasM = hasSelectorMatches();
+    f.push({ name: "Seletor :has()", s: hasS && hasM ? "ok" : (hasS || hasM ? "warn" : "no"), d: "CSS.supports: " + (hasS ? "sim" : "não") + " · querySelector: " + (hasM ? "sim" : "não") });
+
+    f.push({ name: "Container queries", s: supportsCss("container-type", "inline-size") ? "ok" : "no", d: "container-type: inline-size" });
+    f.push({ name: "aspect-ratio", s: supportsCss("aspect-ratio", "16 / 9") ? "ok" : "no", d: "aspect-ratio: 16 / 9" });
+    f.push({ name: "backdrop-filter", s: (supportsCss("backdrop-filter", "blur(4px)") || supportsCss("-webkit-backdrop-filter", "blur(4px)")) ? "ok" : "no", d: "desfoque de fundo (efeito vidro)" });
+    f.push({ name: "CSS nesting", s: supportsSelector("&") ? "ok" : "no", d: "esperado: não suportado no Chromium 111. A interface não vai usar" });
+    f.push({ name: "Web Animations (element.animate)", s: typeof Element.prototype.animate === "function" ? "ok" : "no", d: "animações via JavaScript" });
+    f.push({ name: "Módulos ES (<script type=module>)", s: "noModule" in document.createElement("script") ? "ok" : "no", d: "organização do código da interface" });
+    f.push({
+      name: "Service Worker",
+      s: "serviceWorker" in navigator ? (window.isSecureContext ? "ok" : "warn") : "no",
+      d: "serviceWorker" in navigator ? (window.isSecureContext ? "API presente (não registrado)" : "API presente, mas exige HTTPS") : "API ausente"
+    });
+    var hover = window.matchMedia && matchMedia("(hover: hover)").matches;
+    var fine = window.matchMedia && matchMedia("(pointer: fine)").matches;
+    f.push({ name: "Tipo de entrada informado", s: "manual", d: "hover: " + (hover ? "sim" : "não") + " · ponteiro fino: " + (fine ? "sim" : "não") + ". Confira com o registro de ponteiro" });
+    f.push({ name: "Teclas reservadas pelo sistema (Home, Volume…)", s: "na", d: "o navegador não consegue saber; teclas que não aparecem no registro estão reservadas" });
+    return f;
+  }
+
+  function renderFeatures() {
+    featureResults = collectFeatures();
+    var tb = $("feat-table").tBodies[0];
+    tb.textContent = "";
+    featureResults.forEach(function (f) {
+      var tr = el("tr");
+      if (f.id) tr.id = f.id;
+      tr.appendChild(el("td", f.name.replace(/^ {2}/, "↳ ")));
+      var td = el("td");
+      td.appendChild(el("span", BADGE[f.s][1], "badge " + BADGE[f.s][0]));
+      tr.appendChild(td);
+      tr.appendChild(el("td", f.d, "detail"));
+      tb.appendChild(tr);
+    });
+    liveFetch();
+  }
+
+  function setFeature(id, s, d) {
+    for (var i = 0; i < featureResults.length; i++) {
+      if (featureResults[i].id === id) { featureResults[i].s = s; featureResults[i].d = d; }
+    }
+    var tr = $(id);
+    if (!tr) return;
+    var badge = tr.cells[1].firstChild;
+    badge.className = "badge " + BADGE[s][0];
+    badge.textContent = BADGE[s][1];
+    tr.cells[2].textContent = d;
+  }
+
+  function liveFetch() {
+    if (typeof window.fetch !== "function") { setFeature("fetch-live", "no", "fetch ausente"); return; }
+    if (!/^https?:$/.test(location.protocol)) {
+      setFeature("fetch-live", "na", "página aberta como arquivo local; publique em HTTPS para testar");
+      return;
+    }
+    // Só pede de novo esta mesma página ao servidor que já a entregou. Nenhum dado é enviado.
+    var t0 = performance.now();
+    fetch(location.pathname, { method: "HEAD", cache: "no-store", credentials: "omit" })
+      .then(function (r) {
+        var ms = Math.round(performance.now() - t0);
+        setFeature("fetch-live", r.ok ? "ok" : "warn", "HEAD na própria página: HTTP " + r.status + " em " + ms + " ms");
+      })
+      .catch(function (e) { setFeature("fetch-live", "no", "falhou: " + e.message); });
+  }
+
+  renderFeatures();
+  $("btn-recheck").addEventListener("click", renderFeatures);
+
+  // Tela cheia: só acontece quando o usuário aperta o botão.
+  $("btn-fs").addEventListener("click", function () {
+    var root = document.documentElement;
+    var isFs = document.fullscreenElement || document.webkitFullscreenElement;
+    var out = $("fs-result");
+    try {
+      if (isFs) {
+        (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+        return;
+      }
+      var req = root.requestFullscreen || root.webkitRequestFullscreen;
+      if (!req) { out.textContent = "Tela cheia: API ausente neste navegador."; return; }
+      var p = req.call(root);
+      if (p && p.then) {
+        p.then(function () { out.textContent = "Tela cheia: funcionou. Aperte o botão de novo para sair."; })
+         .catch(function (e) { out.textContent = "Tela cheia: recusada (" + e.name + ": " + e.message + ")."; });
+      }
+    } catch (e) {
+      out.textContent = "Tela cheia: erro (" + e.message + ").";
+    }
+  });
+  function onFsChange() {
+    var on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+    $("btn-fs").textContent = on ? "Sair da tela cheia" : "Testar tela cheia";
+    if (on) $("fs-result").textContent = "Tela cheia: ativa. Viewport agora " + window.innerWidth + "×" + window.innerHeight + ".";
+    logSystem("tela cheia", on ? "entrou" : "saiu");
+  }
+  document.addEventListener("fullscreenchange", onFsChange);
+  document.addEventListener("webkitfullscreenchange", onFsChange);
+
+  // ---------- 4. FPS ----------
+  var fps = { running: false, raf: 0, start: 0, last: 0, frames: 0, secStart: 0, secFrames: 0, min: Infinity, long: 0, x: 0, dir: 1 };
+  function fpsLoop(t) {
+    if (!fps.running) return;
+    if (!fps.last) { fps.last = t; fps.start = t; fps.secStart = t; }
+    var dt = t - fps.last;
+    fps.last = t;
+    if (dt > 50) fps.long++;
+    fps.frames++;
+    fps.secFrames++;
+
+    var track = $("ball").parentNode.clientWidth - $("ball").offsetWidth;
+    fps.x += fps.dir * dt * 0.6; // ~0,6 px por ms
+    if (fps.x > track) { fps.x = track; fps.dir = -1; }
+    if (fps.x < 0) { fps.x = 0; fps.dir = 1; }
+    $("ball").style.transform = "translate3d(" + fps.x.toFixed(1) + "px,0,0)";
+
+    if (t - fps.secStart >= 1000) {
+      var now = fps.secFrames * 1000 / (t - fps.secStart);
+      fps.min = Math.min(fps.min, now);
+      $("fps-now").textContent = now.toFixed(0);
+      $("fps-min").textContent = fps.min.toFixed(0);
+      $("fps-avg").textContent = (fps.frames * 1000 / (t - fps.start)).toFixed(1);
+      $("fps-long").textContent = fps.long;
+      $("fps-status").textContent = "Rodando há " + Math.round((t - fps.start) / 1000) + " s.";
+      fps.secStart = t;
+      fps.secFrames = 0;
+    }
+    fps.raf = requestAnimationFrame(fpsLoop);
+  }
+  $("btn-fps-start").addEventListener("click", function () {
+    if (fps.running) return;
+    fps.running = true; fps.last = 0; fps.frames = 0; fps.secFrames = 0; fps.min = Infinity; fps.long = 0;
+    ["fps-now", "fps-avg", "fps-min", "fps-long"].forEach(function (id) { $(id).textContent = "…"; });
+    $("fps-status").textContent = "Medindo…";
+    fps.raf = requestAnimationFrame(fpsLoop);
+  });
+  $("btn-fps-stop").addEventListener("click", function () {
+    if (!fps.running) return;
+    fps.running = false;
+    cancelAnimationFrame(fps.raf);
+    var secs = fps.last && fps.start ? Math.round((fps.last - fps.start) / 1000) : 0;
+    $("fps-status").textContent = "Parado após " + secs + " s. Resultado mantido acima.";
+  });
+  document.addEventListener("visibilitychange", function () {
+    // Medir com a página oculta não faz sentido; reinicia a referência de tempo.
+    if (document.hidden) fps.last = 0;
+  });
+
+  // ---------- 5. teclado ----------
+  var MAX_LOG = 200;
+  var unique = {};
+  var pointer = { moves: 0, clicks: 0, type: "", lastAt: "" };
+
+  function addLogRow(cells, cls) {
+    var tb = $("keylog-body");
+    var tr = el("tr");
+    cells.forEach(function (c, i) { tr.appendChild(el("td", c, i === 1 ? cls : "mono")); });
+    tb.insertBefore(tr, tb.firstChild);
+    while (tb.rows.length > MAX_LOG) tb.deleteRow(tb.rows.length - 1);
+  }
+  function logSystem(what, detail) {
+    if (!$("keylog-body")) return;
+    addLogRow([timeStamp(), "sistema", what, detail || "", ""], "ev-sys");
+  }
+  function show(v) { return v === undefined || v === null || v === "" ? "(vazio)" : (v === " " ? "(espaço)" : v); }
+
+  function onKey(e) {
+    // Apenas observa. Nunca chama preventDefault nem stopPropagation.
+    var type = e.type === "keydown" ? "keydown" + (e.repeat ? " (repetida)" : "") : "keyup";
+    addLogRow([timeStamp(), type, show(e.key), show(e.code), String(e.keyCode)], e.type === "keydown" ? "ev-down" : "ev-up");
+    if (e.type !== "keydown") return;
+    $("last-key").textContent = show(e.key);
+    $("last-key-detail").textContent = "code: " + show(e.code) + " · keyCode: " + e.keyCode + " · which: " + e.which;
+    var id = e.key + "|" + e.code + "|" + e.keyCode;
+    if (!unique[id]) unique[id] = { key: show(e.key), code: show(e.code), keyCode: e.keyCode, n: 0 };
+    unique[id].n++;
+    renderUnique();
+    if (navEnabled) moveFocus(e);
+  }
+  window.addEventListener("keydown", onKey, { passive: true });
+  window.addEventListener("keyup", onKey, { passive: true });
+
+  function renderUnique() {
+    var tb = $("unique-body");
+    tb.textContent = "";
+    Object.keys(unique).map(function (k) { return unique[k]; })
+      .sort(function (a, b) { return a.keyCode - b.keyCode; })
+      .forEach(function (u) {
+        var tr = el("tr");
+        tr.appendChild(el("td", u.key));
+        tr.appendChild(el("td", u.code));
+        tr.appendChild(el("td", u.keyCode));
+        tr.appendChild(el("td", u.n));
+        tb.appendChild(tr);
+      });
+  }
+
+  // Eventos do sistema que ajudam a entender Voltar/Home e o modo ponteiro.
+  document.addEventListener("visibilitychange", function () { logSystem("visibilidade", document.hidden ? "página oculta" : "página visível"); });
+  window.addEventListener("blur", function () { logSystem("janela", "perdeu o foco"); });
+  window.addEventListener("focus", function () { logSystem("janela", "recebeu o foco"); });
+  window.addEventListener("pagehide", function () { logSystem("página", "saindo"); });
+
+  var lastPointerLog = 0;
+  function onPointer(e) {
+    if (e.type === "pointermove" || e.type === "mousemove") {
+      pointer.moves++;
+      var now = Date.now();
+      if (now - lastPointerLog > 2000) {
+        lastPointerLog = now;
+        logSystem("ponteiro", "movimento (" + (e.pointerType || "mouse") + ") em " + Math.round(e.clientX) + "," + Math.round(e.clientY));
+      }
+    } else {
+      pointer.clicks++;
+      logSystem("clique", (e.pointerType || "mouse") + " em " + Math.round(e.clientX) + "," + Math.round(e.clientY));
+    }
+    pointer.type = e.pointerType || "mouse";
+    pointer.lastAt = timeStamp();
+    $("pointer-info").textContent = "Ponteiro: " + pointer.moves + " movimentos, " + pointer.clicks +
+      " cliques (tipo: " + pointer.type + ", último às " + pointer.lastAt + ").";
+  }
+  if (window.PointerEvent) {
+    window.addEventListener("pointermove", onPointer, { passive: true });
+    window.addEventListener("pointerdown", onPointer, { passive: true });
+  } else {
+    window.addEventListener("mousemove", onPointer, { passive: true });
+    window.addEventListener("mousedown", onPointer, { passive: true });
+  }
+
+  $("btn-clear").addEventListener("click", function () {
+    $("keylog-body").textContent = "";
+    unique = {};
+    renderUnique();
+    pointer = { moves: 0, clicks: 0, type: "", lastAt: "" };
+    $("pointer-info").textContent = "Ponteiro: nenhum movimento detectado.";
+    $("last-key").textContent = "nenhuma";
+    $("last-key-detail").textContent = "";
+  });
+
+  // Mover foco com setas: escolhe o botão mais próximo na direção da seta.
+  // Não bloqueia a tecla; o navegador continua recebendo e tratando a seta.
+  var navEnabled = true;
+  var DIRS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Up: "up", Down: "down", Left: "left", Right: "right" };
+  var DIR_CODES = { 38: "up", 40: "down", 37: "left", 39: "right" };
+  $("btn-nav").addEventListener("click", function () {
+    navEnabled = !navEnabled;
+    this.textContent = "Mover foco com setas: " + (navEnabled ? "ligado" : "desligado");
+  });
+  function moveFocus(e) {
+    var dir = DIRS[e.key] || DIR_CODES[e.keyCode];
+    if (!dir) return;
+    var items = Array.prototype.slice.call(document.querySelectorAll("button"));
+    var cur = document.activeElement;
+    if (!cur || items.indexOf(cur) < 0) {
+      items[0].focus();
+      items[0].scrollIntoView({ block: "center" });
+      return;
+    }
+    var a = cur.getBoundingClientRect();
+    var ax = a.left + a.width / 2, ay = a.top + a.height / 2;
+    var best = null, bestScore = Infinity;
+    items.forEach(function (it) {
+      if (it === cur) return;
+      var b = it.getBoundingClientRect();
+      var bx = b.left + b.width / 2, by = b.top + b.height / 2;
+      var dx = bx - ax, dy = by - ay;
+      var main, cross;
+      if (dir === "up") { main = -dy; cross = Math.abs(dx); }
+      else if (dir === "down") { main = dy; cross = Math.abs(dx); }
+      else if (dir === "left") { main = -dx; cross = Math.abs(dy); }
+      else { main = dx; cross = Math.abs(dy); }
+      if (main <= 1) return;
+      var score = main + cross * 2;
+      if (score < bestScore) { bestScore = score; best = it; }
+    });
+    if (best) {
+      best.focus();
+      best.scrollIntoView({ block: "nearest" });
+    }
+  }
+
+  // ---------- 8. resumo ----------
+  function summarize() {
+    var lines = [];
+    lines.push("NEXUS TV · Diagnóstico Fase 0 · " + new Date().toLocaleString("pt-BR"));
+    lines.push("UA: " + navigator.userAgent);
+    lines.push("Viewport: " + window.innerWidth + "×" + window.innerHeight + " · DPR " + (window.devicePixelRatio || 1) +
+      " · Tela " + screen.width + "×" + screen.height + " · Disponível " + screen.availWidth + "×" + screen.availHeight);
+    lines.push("Núcleos: " + (navigator.hardwareConcurrency || "?") + " · Memória: " + (navigator.deviceMemory || "?") + " GB · GPU: " + webglInfo().text);
+    lines.push("");
+    lines.push("Recursos:");
+    featureResults.forEach(function (f) {
+      lines.push("  [" + BADGE[f.s][1] + "] " + f.name.trim() + ": " + f.d);
+    });
+    lines.push("Tela cheia: " + $("fs-result").textContent.replace(/^Tela cheia: /, ""));
+    lines.push("");
+    lines.push("FPS: atual " + $("fps-now").textContent + " · médio " + $("fps-avg").textContent +
+      " · pior " + $("fps-min").textContent + " · quadros > 50 ms: " + $("fps-long").textContent);
+    lines.push("");
+    var keys = Object.keys(unique).map(function (k) { return unique[k]; }).sort(function (a, b) { return a.keyCode - b.keyCode; });
+    lines.push("Teclas recebidas (" + keys.length + "):");
+    if (!keys.length) lines.push("  nenhuma");
+    keys.forEach(function (u) { lines.push("  keyCode " + u.keyCode + " · key " + u.key + " · code " + u.code); });
+    lines.push("Ponteiro: " + pointer.moves + " movimentos, " + pointer.clicks + " cliques");
+    $("summary").textContent = lines.join("\n");
+  }
+  $("btn-summary").addEventListener("click", summarize);
+
+  // Foco inicial no primeiro botão para quem navega com o controle.
+  setTimeout(function () {
+    var first = document.querySelector("button");
+    if (first) first.focus({ preventScroll: true });
+  }, 300);
+})();
+</script>
+</body>
+</html>
