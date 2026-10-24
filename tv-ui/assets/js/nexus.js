@@ -240,6 +240,7 @@
       var e = titleEntry(k);
       if (!e) return;
       var frame = el("a", "frame poster is-loading");
+      frame.setAttribute("tabindex", "-1");
       frame.setAttribute("data-entry", k);
       setLink(frame, e.url);
       frame.setAttribute("data-title", e.title);
@@ -442,6 +443,7 @@
   function refresh() {
     if (view === "home") renderHome();
     else renderList(view);
+    keepFocus();
   }
 
   // ---------- relógio e saudação ----------
@@ -455,29 +457,64 @@
     $("greet").textContent = h < 5 ? "Boa noite" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
   }
 
-  // ---------- foco por setas (se chegarem como teclas) ----------
-  var current = null;
+  // ---------- navegação por controle remoto ----------
+  // Funciona quando o navegador entrega as setas à página (computador, modo de
+  // navegação sem ponteiro, app). No modo ponteiro do navegador VIDAA as setas
+  // movem o cursor e não chegam aqui; o OK continua clicando sob o ponteiro.
+  var current = null;          // elemento com foco do controle
+  var inputMode = "pointer";   // "key" depois de uma seta; "pointer" quando o ponteiro se move
+  var lastHovered = null;
+  var lastInRegion = {};       // memória: último item focado em cada região
+
+  function regionOf(n) {
+    if (!n || !n.closest) return "";
+    if (n.closest(".panel")) return "panel";
+    if (n.closest(".head")) return "head";
+    if (n.closest(".dock-main")) return "dock-main";
+    if (n.closest(".dock-more")) return "dock-more";
+    if (n.closest(".stage")) return "stage-" + view;
+    return "";
+  }
+  function visible(n) { return !!n && n.offsetParent !== null && document.documentElement.contains(n); }
+
   function setFocus(node) {
-    if (current) current.classList.remove("is-focus");
+    if (current && current !== node) current.classList.remove("is-focus");
     current = node;
     if (!node) return;
     node.classList.add("is-focus");
-    node.focus({ preventScroll: true });
-    if (node.classList.contains("app")) selectApp(appOfNode(node));
+    if (node.focus) node.focus({ preventScroll: true });
+    var r = regionOf(node);
+    if (r) lastInRegion[r] = node;
+    if (node.classList.contains("app")) {
+      // Igual ao ponteiro: o destaque só troca quando o foco para no app.
+      clearTimeout(hoverTimer);
+      var app = appOfNode(node);
+      hoverTimer = setTimeout(function () { selectApp(app); }, HOVER_REST);
+    }
     if (node.classList.contains("poster")) showPosterInfo(node);
   }
   function focusables() {
     if (panelOpen()) return [$("panel-close")];
     return Array.prototype.slice.call(document.querySelectorAll(".tab, .circle, .retry, .hero, .rec, .poster, .app"))
-      .filter(function (n) { return n.offsetParent !== null; });
+      .filter(visible);
   }
+  // Primeiro item da seção atual (destaque ou primeiro pôster).
+  function sectionStart() {
+    if (view === "home") return $("hero");
+    return document.querySelector(".poster") || document.querySelector('.tab[data-view="' + view + '"]');
+  }
+  function initialFocus() {
+    if (panelOpen()) return $("panel-close");
+    if (visible(lastHovered)) return lastHovered;
+    var remembered = lastInRegion["stage-" + view];
+    return visible(remembered) ? remembered : sectionStart();
+  }
+
   // 1º: a linha/coluna mais próxima na direção da seta; 2º: o item mais alinhado.
+  // Ao entrar numa região, volta ao último item usado nela.
   function moveFocus(dir) {
     var items = focusables();
-    if (!current || items.indexOf(current) < 0) {
-      setFocus(panelOpen() ? $("panel-close") : (document.querySelector(".app.is-selected") || document.querySelector(".app")));
-      return;
-    }
+    if (!current || items.indexOf(current) < 0) { setFocus(initialFocus()); return; }
     var a = current.getBoundingClientRect();
     var ax = a.left + a.width / 2, ay = a.top + a.height / 2;
     var cands = [];
@@ -493,7 +530,16 @@
       var overlap = dir === "left" || dir === "right" ? (b.top < a.bottom && b.bottom > a.top) : (b.left < a.right && b.right > a.left);
       if (ahead && gap > -24) cands.push({ n: n, gap: Math.max(gap, 0), cross: cross, overlap: overlap });
     });
-    if (!cands.length) return;
+    if (!cands.length) return; // borda: o foco fica onde está
+    var here = regionOf(current);
+    if (dir === "left" || dir === "right") {
+      // Para os lados: primeiro dentro da mesma região (ex.: do ⓘ para as abas);
+      // só passa para outra região na mesma linha (ex.: dock principal → secundária).
+      var same = cands.filter(function (c) { return regionOf(c.n) === here; });
+      cands = same.length ? same : cands.filter(function (c) { return c.overlap; });
+      if (!cands.length) return;
+    }
+    var reachable = cands.slice(); // para a memória de região, antes do filtro de linha/coluna
     // Quem está na mesma linha (ou coluna) tem preferência.
     if (cands.some(function (c) { return c.overlap; })) cands = cands.filter(function (c) { return c.overlap; });
     var nearest = Math.min.apply(null, cands.map(function (c) { return c.gap; }));
@@ -502,15 +548,45 @@
       if (c.gap > nearest + 24) return;
       if (!best || c.cross < best.cross) best = c;
     });
-    setFocus(best.n);
+    var target = best.n, from = here, to = regionOf(target);
+    if (to !== from) {
+      // Entrando no cabeçalho sem memória: a aba da seção atual (como na Apple TV).
+      var remembered = lastInRegion[to] || (to === "head" ? document.querySelector(".tab.is-on") : null);
+      for (var i = 0; i < reachable.length; i++) if (reachable[i].n === remembered) { target = remembered; break; }
+    }
+    setFocus(target);
   }
   function showPosterInfo(node) {
     setInfo($("view-list").querySelector(".info"), node.getAttribute("data-title"), node.getAttribute("data-meta"));
+  }
+  // Depois de redesenhar (troca de aba, dados novos), recoloca o foco se ele se perdeu.
+  function keepFocus() {
+    if (inputMode !== "key" || visible(current)) return;
+    // O mesmo título, se ainda estiver na lista redesenhada; senão, o início da seção.
+    var key = current && current.getAttribute("data-entry");
+    var same = key ? document.querySelector('.poster[data-entry="' + key + '"]') : null;
+    if (current) current.classList.remove("is-focus");
+    current = null;
+    setFocus(visible(same) ? same : initialFocus());
+  }
+  function activateFocused() {
+    if (!current) return;
+    if (current.classList.contains("tab")) { openTab(current.getAttribute("data-view")); return; }
+    current.click(); // passa pelos mesmos ouvintes do clique do ponteiro
+  }
+  function openTab(next) {
+    setView(next);
+    lastInRegion.head = document.querySelector(".tab.is-on");
+    if (inputMode === "key") setFocus(sectionStart());
   }
 
   // ---------- teclado ----------
   var DIRS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Up: "up", Down: "down", Left: "left", Right: "right" };
   var DIR_CODES = { 38: "up", 40: "down", 37: "left", 39: "right" };
+  // Voltar: Escape (27), Backspace (8, comum em TVs), 461 (webOS), 10009 (Tizen), BrowserBack (166).
+  var BACK_KEYS = { Escape: 1, Esc: 1, Backspace: 1, BrowserBack: 1, GoBack: 1 };
+  var BACK_CODES = { 27: 1, 8: 1, 461: 1, 10009: 1, 166: 1 };
+  var ENTER_KEYS = { Enter: 1, Select: 1, Accept: 1 };
   var lastKey = "";
   function digitOf(e) {
     if (e.key && e.key.length === 1 && e.key >= "0" && e.key <= "9") return e.key;
@@ -518,8 +594,10 @@
     if (e.keyCode >= 96 && e.keyCode <= 105) return String(e.keyCode - 96);
     return null;
   }
+  // Só cancela o comportamento padrão de teclas que a NEXUS realmente tratou.
   function onKey(e) {
     lastKey = (e.key || "?") + " / " + e.keyCode;
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
     var digit = digitOf(e);
     if (digit && byKey[digit]) {
       closePanel();
@@ -528,10 +606,28 @@
       activateApp(app, nodeOfApp(app));
       return;
     }
-    if (e.key === "Escape" || e.keyCode === 27) { closePanel(); return; }
     var dir = DIRS[e.key] || DIR_CODES[e.keyCode];
-    if (dir) moveFocus(dir);
-    // Enter/OK sobre um elemento focado já vira clique nativo do navegador.
+    if (dir) {
+      inputMode = "key";
+      e.preventDefault();
+      moveFocus(dir);
+      return;
+    }
+    if (ENTER_KEYS[e.key] || e.keyCode === 13) {
+      // Só no modo teclado: com o ponteiro, o OK continua sendo o clique do navegador.
+      if (inputMode === "key" && visible(current)) { e.preventDefault(); activateFocused(); }
+      return;
+    }
+    if (BACK_KEYS[e.key] || BACK_CODES[e.keyCode]) {
+      if (panelOpen()) { e.preventDefault(); closePanel(); return; }
+      if (view !== "home") {
+        e.preventDefault();
+        setView("home");
+        if (inputMode === "key") setFocus(document.querySelector('.tab[data-view="home"]'));
+        return;
+      }
+      // Na tela inicial, o Voltar fica com o navegador (pode sair da página).
+    }
   }
 
   // ---------- medições e debug (?debug) ----------
@@ -579,6 +675,9 @@
   // ---------- início ----------
   function start() {
     buildDock();
+    // Destaque e recomendações podem ficar sem link (instruções); tabindex garante o foco.
+    var frames = document.querySelectorAll(".frame");
+    for (var fi = 0; fi < frames.length; fi++) frames[fi].setAttribute("tabindex", "-1");
     tick();
     setInterval(tick, 1000);
 
@@ -592,9 +691,26 @@
     fetchHome();
 
     window.addEventListener("keydown", onKey);
+    // O foco do controle só cede ao ponteiro quando o ponteiro se move de verdade
+    // (um elemento que aparece sob um cursor parado não rouba o foco).
+    var lastXY = "";
+    document.addEventListener("pointermove", function (e) {
+      var xy = Math.round(e.clientX) + "," + Math.round(e.clientY);
+      if (xy === lastXY) return;
+      lastXY = xy;
+      if (inputMode === "key") {
+        inputMode = "pointer";
+        if (current) { current.classList.remove("is-focus"); current = null; }
+        // Solta também o foco do navegador: o OK deve agir sob o ponteiro,
+        // não no último item escolhido pelas setas.
+        if (document.activeElement && document.activeElement !== document.body && document.activeElement.blur) document.activeElement.blur();
+      }
+    }, { passive: true });
     document.addEventListener("pointerover", function (e) {
       if (panelOpen()) return;
       var n = closest(e.target, ".tab, .circle, .retry, .hero, .rec, .poster, .app");
+      lastHovered = n;
+      if (inputMode === "key") return;
       if (current && current !== n) { current.classList.remove("is-focus"); current = null; }
       clearTimeout(hoverTimer);
       if (!n) return;
@@ -611,7 +727,7 @@
       var n = closest(e.target, ".app, .hero, .rec, .poster, .tab");
       if (!n) return;
       if (e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
-      if (n.classList.contains("tab")) { setView(n.getAttribute("data-view")); return; }
+      if (n.classList.contains("tab")) { openTab(n.getAttribute("data-view")); return; }
       // Os links funcionam sem JavaScript; aqui só adicionamos o retorno visual.
       e.preventDefault();
       if (n.classList.contains("app")) { var app = appOfNode(n); selectApp(app); activateApp(app, n); return; }
