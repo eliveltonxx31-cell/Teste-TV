@@ -1,12 +1,13 @@
 /*
  * NEXUS TV · comportamento da tela inicial.
  *
- * Navegação no VIDAA (medido na Fase 0): as setas movem um cursor virtual e o
- * OK clica; as teclas numéricas chegam como keydown. Por isso:
- *   - os cartões são links <a href> comuns (o clique do cursor basta);
- *   - as teclas 1–9 abrem o cartão com aquele número;
- *   - se setas chegarem como teclas (outro modo ou outro aparelho), um modo de
- *     foco leve é ativado. Nenhuma tecla é bloqueada.
+ * Navegação no VIDAA (medido na Fase 0): as setas movem um ponteiro virtual e
+ * o OK clica; as teclas numéricas chegam como keydown. Por isso:
+ *   - cartões de site são links <a href> comuns (o clique do ponteiro basta);
+ *   - as teclas 1–9 e 0 abrem o cartão com aquele número;
+ *   - se setas chegarem como teclas, um modo de foco leve é ativado.
+ * Nenhum ouvinte de teclado chama preventDefault: o navegador continua
+ * tratando todas as teclas normalmente.
  */
 (function () {
   "use strict";
@@ -23,145 +24,116 @@
     return e;
   }
   function pad(n) { return n < 10 ? "0" + n : String(n); }
-
-  // Cor com transparência para brilhos (#rrggbb -> rgba).
-  function soft(hex, alpha) {
+  function rgba(hex, alpha) {
     var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || "");
-    if (!m) return "rgba(47, 123, 255, " + alpha + ")";
+    if (!m) return "rgba(255, 255, 255, " + alpha + ")";
     return "rgba(" + parseInt(m[1], 16) + ", " + parseInt(m[2], 16) + ", " + parseInt(m[3], 16) + ", " + alpha + ")";
   }
-  // Texto escuro sobre cores claras.
-  function ink(hex) {
-    var m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || "");
-    if (!m) return "#fff";
-    var l = 0.299 * parseInt(m[1], 16) + 0.587 * parseInt(m[2], 16) + 0.114 * parseInt(m[3], 16);
-    return l > 170 ? "#0b1020" : "#fff";
-  }
-  function paint(node, app) {
-    // CSSOM é permitido pela política de segurança (style-src 'self').
-    node.style.setProperty("--c", app.color);
-    node.style.setProperty("--c-soft", soft(app.color, 0.38));
-    node.style.setProperty("--c-ink", ink(app.color));
+  function host(url) {
+    var m = /^https?:\/\/(?:www\.)?([^\/]+)/.exec(url || "");
+    return m ? m[1] : "";
   }
 
-  // ---------- montagem ----------
-  function buildCard(app) {
-    var a = el("a", "card");
-    a.href = app.url;
-    a.setAttribute("data-key", app.key);
-    paint(a, app);
-    var top = el("div", "card-top");
-    var mono = el("span", "card-mono", app.mono);
-    mono.style.color = ink(app.color);
-    top.appendChild(mono);
-    top.appendChild(el("span", "key", app.key));
-    a.appendChild(top);
-    a.appendChild(el("span", "card-name", app.name));
-    return a;
-  }
+  // ---------- montagem da grade ----------
   function buildTile(app) {
-    var a = el("a", "tile");
-    a.href = app.url;
-    a.setAttribute("data-key", app.key);
-    paint(a, app);
-    a.appendChild(el("span", "tile-mono", app.mono));
-    a.appendChild(el("span", "tile-name", app.name));
-    a.appendChild(el("span", "key", app.key));
-    return a;
+    var isSite = app.type === "site";
+    var tile = el(isSite ? "a" : "button", "tile");
+    if (isSite) tile.href = app.url;
+    else tile.type = "button";
+    tile.setAttribute("data-key", app.key);
+
+    var card = el("div", "card");
+    // CSSOM é permitido pela política de segurança (style-src 'self').
+    card.style.setProperty("--tint", rgba(app.color, 0.42));
+    card.appendChild(el("span", "card-key", app.key));
+    card.appendChild(el("span", "card-name", app.name));
+    if (!isSite) card.appendChild(el("span", "card-tag", "INSTRUÇÕES"));
+    tile.appendChild(card);
+    tile.appendChild(el("div", "label", isSite ? host(app.url) : "Abre instruções"));
+    return tile;
   }
 
   function build() {
-    var appsBox = $("apps");
-    var shortBox = $("shortcuts");
-    var firstTool = shortBox.firstChild;
-    var featured = null;
-
+    var grid = $("grid");
+    var frag = document.createDocumentFragment();
     apps.forEach(function (app) {
       if (app.key) byKey[app.key] = app;
-      if (app.featured && !featured) featured = app;
-      if (app.group === "shortcuts") shortBox.insertBefore(buildTile(app), firstTool);
-      else appsBox.appendChild(buildCard(app));
+      frag.appendChild(buildTile(app));
     });
-
-    featured = featured || apps[0];
-    if (featured) {
-      var hero = $("hero");
-      hero.href = featured.url;
-      hero.setAttribute("data-key", featured.key);
-      paint(hero, featured);
-      $("hero-title").textContent = featured.name;
-      $("hero-blurb").textContent = featured.blurb || "";
-      $("hero-mono").textContent = featured.mono;
-      $("hero-mono").style.color = ink(featured.color);
-      $("hero-key").textContent = featured.key;
-    }
-
-    $("tile-reload").addEventListener("click", function () { location.reload(); });
+    grid.appendChild(frag);
   }
 
-  // ---------- relógio e saudação ----------
-  var DAYS = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
-  var MONTHS = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto",
-    "setembro", "outubro", "novembro", "dezembro"];
+  // ---------- vitrine ----------
+  var DEFAULT_BLURB = "Escolha um app com o ponteiro ou aperte o número no controle.";
+  var shown = null;
+  function greeting() {
+    var h = new Date().getHours();
+    return h < 5 ? "Boa noite" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
+  }
+  function showShelf(node) {
+    if (node === shown) return;
+    shown = node;
+    var title, blurb, meta;
+    var key = node && node.getAttribute("data-key");
+    var app = key ? byKey[key] : null;
+    if (app) {
+      title = app.name;
+      blurb = app.blurb || "";
+      meta = "Tecla " + app.key + " · " + (app.type === "site" ?
+        "abre " + host(app.url) + " na mesma aba" : "mostra como abrir pelo VIDAA");
+    } else if (node && node.getAttribute("data-title")) {
+      title = node.getAttribute("data-title");
+      blurb = node.getAttribute("data-blurb") || "";
+      meta = "";
+    } else {
+      title = greeting();
+      blurb = DEFAULT_BLURB;
+      meta = "";
+    }
+    $("shelf-title").textContent = title;
+    $("shelf-blurb").textContent = blurb;
+    $("shelf-meta").textContent = meta;
+  }
+  function targetOf(e) {
+    return e.target && e.target.closest ? e.target.closest(".tile, .icon-btn") : null;
+  }
+
+  // ---------- relógio ----------
   var lastMinute = -1;
   function tick() {
     var d = new Date();
-    var m = d.getMinutes();
-    if (m === lastMinute) return;
-    lastMinute = m;
-    var h = d.getHours();
-    $("clock").textContent = pad(h) + ":" + pad(m);
-    $("date").textContent = DAYS[d.getDay()] + ", " + d.getDate() + " de " + MONTHS[d.getMonth()];
-    $("greeting").textContent = h < 5 ? "Boa noite" : h < 12 ? "Bom dia" : h < 18 ? "Boa tarde" : "Boa noite";
+    if (d.getMinutes() === lastMinute) return;
+    lastMinute = d.getMinutes();
+    $("clock").textContent = pad(d.getHours()) + ":" + pad(lastMinute);
+    if (!shown) $("shelf-title").textContent = greeting();
   }
 
-  // ---------- abrir app ----------
-  var opening = false;
-  function open(app, node) {
-    if (opening || !app) return;
-    opening = true;
-    var toast = $("opening");
-    toast.textContent = "Abrindo " + app.name + "…";
-    toast.className = "opening show";
-    if (node) node.classList.add("is-pressed");
-    // Pequena pausa só para o retorno visual aparecer antes de sair da página.
-    setTimeout(function () { location.href = app.url; }, 160);
-  }
-
-  function nodeForKey(k) {
-    return document.querySelector('.card[data-key="' + k + '"], .tile[data-key="' + k + '"]');
-  }
-
-  function digitOf(e) {
-    if (e.key && e.key.length === 1 && e.key >= "0" && e.key <= "9") return e.key;
-    if (e.keyCode >= 48 && e.keyCode <= 57) return String(e.keyCode - 48);
-    if (e.keyCode >= 96 && e.keyCode <= 105) return String(e.keyCode - 96); // teclado numérico
-    return null;
-  }
-
-  // ---------- setas (opcional) ----------
-  var DIRS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Up: "up", Down: "down", Left: "left", Right: "right" };
-  var DIR_CODES = { 38: "up", 40: "down", 37: "left", 39: "right" };
-  var focusables = [];
+  // ---------- foco (setas, se chegarem como teclas) ----------
   var current = null;
-
   function setFocus(node) {
     if (current) current.classList.remove("is-focus");
     current = node;
-    if (node) {
-      node.classList.add("is-focus");
-      node.focus({ preventScroll: true });
-    }
+    if (!node) return;
+    node.classList.add("is-focus");
+    node.focus({ preventScroll: true });
+    showShelf(node);
   }
+  function focusables() {
+    var sel = panelOpen() ? ".panel-close" : ".tile, .icon-btn";
+    return Array.prototype.slice.call(document.querySelectorAll(sel));
+  }
+  // 1º: a linha/coluna mais próxima na direção da seta; 2º: o item mais alinhado.
   function moveFocus(dir) {
-    focusables = Array.prototype.slice.call(document.querySelectorAll(".hero, .card, .tile"));
-    if (!current || focusables.indexOf(current) < 0) { setFocus(focusables[0]); return; }
-    // 1º: a linha/coluna mais próxima naquela direção (distância entre bordas).
-    // 2º: dentro dela, o item mais alinhado com o atual.
+    var items = focusables();
+    if (!current || items.indexOf(current) < 0) {
+      // Primeira seta: começa no primeiro cartão (ou no botão do painel aberto).
+      setFocus(document.querySelector(panelOpen() ? ".panel-close" : ".tile") || items[0]);
+      return;
+    }
     var a = current.getBoundingClientRect();
     var ax = a.left + a.width / 2, ay = a.top + a.height / 2;
     var cands = [];
-    focusables.forEach(function (n) {
+    items.forEach(function (n) {
       if (n === current) return;
       var b = n.getBoundingClientRect();
       var bx = b.left + b.width / 2, by = b.top + b.height / 2;
@@ -183,30 +155,108 @@
     setFocus(best.n);
   }
 
-  // O cursor por cima de um cartão passa a ser o foco atual, para setas e OK
-  // continuarem do mesmo lugar se os dois modos se misturarem.
-  function onPointerOver(e) {
-    var n = e.target.closest && e.target.closest(".hero, .card, .tile");
-    if (n && current && n !== current) current.classList.remove("is-focus");
-    if (n) current = n;
+  // ---------- abrir ----------
+  var leaving = false;
+  function pressed(node) {
+    if (!node) return;
+    node.classList.add("is-pressed");
+    setTimeout(function () { node.classList.remove("is-pressed"); }, 180);
+  }
+  function activate(app, node) {
+    if (!app || leaving) return;
+    if (app.type === "site") {
+      leaving = true;
+      pressed(node);
+      // Pausa curta só para o retorno visual aparecer antes de sair da página.
+      setTimeout(function () { location.href = app.url; }, 140);
+    } else {
+      pressed(node);
+      openPanel(app, node);
+    }
+  }
+  function nodeForKey(k) { return document.querySelector('.tile[data-key="' + k + '"]'); }
+
+  // ---------- painel de instruções ----------
+  var panelReturn = null;
+  function panelOpen() { return !$("panel").hidden; }
+  function openPanel(app, from) {
+    var p = app.panel || {};
+    $("panel-status").textContent = p.status || "";
+    $("panel-title").textContent = p.title || app.name;
+    var body = $("panel-body");
+    body.textContent = "";
+    (p.text || []).forEach(function (t) { body.appendChild(el("p", "", t)); });
+    panelReturn = from || null;
+    $("panel").hidden = false;
+    setFocus($("panel-close"));
+  }
+  function closePanel() {
+    if (!panelOpen()) return;
+    $("panel").hidden = true;
+    $("panel-close").classList.remove("is-focus");
+    current = null;
+    if (panelReturn) setFocus(panelReturn);
+    panelReturn = null;
   }
 
   // ---------- teclado ----------
+  var DIRS = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right", Up: "up", Down: "down", Left: "left", Right: "right" };
+  var DIR_CODES = { 38: "up", 40: "down", 37: "left", 39: "right" };
   var lastKey = "";
+  function digitOf(e) {
+    if (e.key && e.key.length === 1 && e.key >= "0" && e.key <= "9") return e.key;
+    if (e.keyCode >= 48 && e.keyCode <= 57) return String(e.keyCode - 48);
+    if (e.keyCode >= 96 && e.keyCode <= 105) return String(e.keyCode - 96); // teclado numérico
+    return null;
+  }
   function onKey(e) {
     lastKey = (e.key || "?") + " / " + e.keyCode;
+    if (debugOn) renderDebug();
     var digit = digitOf(e);
     if (digit && byKey[digit]) {
-      open(byKey[digit], nodeForKey(digit));
+      closePanel();
+      activate(byKey[digit], nodeForKey(digit));
       return;
     }
+    if (e.key === "Escape" || e.keyCode === 27) { closePanel(); return; }
     var dir = DIRS[e.key] || DIR_CODES[e.keyCode];
     if (dir) moveFocus(dir);
-    // Enter/OK sobre um link focado já é tratado pelo navegador (clique nativo).
+    // Enter/OK sobre um elemento focado já vira clique nativo do navegador.
   }
 
-  // ---------- debug (?debug) ----------
-  var frames = 0, fps = 0, fpsStart = 0;
+  // ---------- debug (?debug): verificação estritamente passiva ----------
+  // Apenas lista nomes de propriedades e lê descritores. Não chama nenhuma
+  // função, não lê getters e não interage com o sistema da TV.
+  function hisenseCheck() {
+    var found = [];
+    var obj = window, level = 0;
+    try {
+      while (obj && level < 6) {
+        var where = level === 0 ? "window" : "protótipo " + level;
+        Object.getOwnPropertyNames(obj).forEach(function (name) {
+          if (!/hisense/i.test(name)) return;
+          var d = Object.getOwnPropertyDescriptor(obj, name);
+          var kind = !d ? "desconhecido" : ("value" in d ? typeof d.value : "acessor (não lido)");
+          found.push(name + " · " + kind + " · " + where);
+        });
+        obj = Object.getPrototypeOf(obj);
+        level++;
+      }
+    } catch (err) {
+      return "Hisense_*: não foi possível listar (" + err.name + ")";
+    }
+    if (!found.length) return "Hisense_*: nenhuma propriedade visível nesta página (nada foi executado)";
+    return "Hisense_* visíveis (nada foi executado):\n  " + found.join("\n  ");
+  }
+  var hisenseReport = "";
+  var fps = 0, frames = 0, fpsStart = 0;
+  function renderDebug() {
+    $("debug").textContent =
+      "viewport " + window.innerWidth + "×" + window.innerHeight +
+      " · dpr " + (window.devicePixelRatio || 1) +
+      " · 1rem " + getComputedStyle(document.documentElement).fontSize +
+      " · fps " + (fps || "–") + " · tecla " + (lastKey || "–") + "\n" + hisenseReport;
+  }
   function debugLoop(t) {
     if (!fpsStart) fpsStart = t;
     frames++;
@@ -214,12 +264,7 @@
       fps = Math.round(frames * 1000 / (t - fpsStart));
       frames = 0;
       fpsStart = t;
-      $("debug").textContent =
-        "viewport " + window.innerWidth + "×" + window.innerHeight +
-        "  dpr " + (window.devicePixelRatio || 1) + "\n" +
-        "1rem " + getComputedStyle(document.documentElement).fontSize +
-        "  fps " + fps + "\n" +
-        "tecla " + (lastKey || "–");
+      renderDebug();
     }
     requestAnimationFrame(debugLoop);
   }
@@ -227,30 +272,47 @@
   // ---------- início ----------
   function start() {
     build();
+    showShelf(null);
     tick();
     setInterval(tick, 1000);
+
     window.addEventListener("keydown", onKey);
-    document.addEventListener("pointerover", onPointerOver, { passive: true });
-    // Ao voltar de um app (Voltar do controle), a página pode vir do cache: limpa o estado.
+    document.addEventListener("pointerover", function (e) {
+      var n = targetOf(e);
+      if (!n || panelOpen()) return;
+      if (current && current !== n) { current.classList.remove("is-focus"); current = null; }
+      showShelf(n);
+    }, { passive: true });
+    document.addEventListener("focusin", function (e) {
+      var n = targetOf(e);
+      if (n) showShelf(n);
+    });
+
+    $("grid").addEventListener("click", function (e) {
+      var n = targetOf(e);
+      if (!n) return;
+      var app = byKey[n.getAttribute("data-key")];
+      if (!app) return;
+      if (app.type === "site" && (e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey)) return;
+      // O link continua funcionando sem JavaScript; aqui só adicionamos o retorno visual.
+      e.preventDefault();
+      activate(app, n);
+    });
+    $("btn-reload").addEventListener("click", function () { location.reload(); });
+    $("panel-close").addEventListener("click", closePanel);
+    $("panel").addEventListener("click", function (e) { if (e.target === this) closePanel(); });
+
+    // Ao voltar de um app pelo Voltar, a página pode vir do cache: limpa o estado.
     window.addEventListener("pageshow", function () {
-      opening = false;
-      $("opening").className = "opening";
-      var pressed = document.querySelectorAll(".is-pressed");
-      for (var i = 0; i < pressed.length; i++) pressed[i].classList.remove("is-pressed");
+      leaving = false;
       lastMinute = -1;
       tick();
     });
-    document.addEventListener("click", function (e) {
-      var n = e.target.closest && e.target.closest("a[data-key]");
-      if (!n || e.defaultPrevented || e.button > 0 || e.metaKey || e.ctrlKey || e.shiftKey) return;
-      var app = byKey[n.getAttribute("data-key")];
-      if (!app) return;
-      // Mostra o aviso e navega; o link continua funcionando sem JavaScript.
-      e.preventDefault();
-      open(app, n);
-    });
+
     if (debugOn) {
+      hisenseReport = hisenseCheck();
       $("debug").hidden = false;
+      renderDebug();
       requestAnimationFrame(debugLoop);
     }
   }

@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <!-- Só arquivos da própria origem; nenhuma conexão sai desta página.
-     Abrir um app é apenas navegar para o endereço dele. -->
+     Abrir um app é apenas navegar para o endereço oficial dele. -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex, nofollow">
-<meta name="theme-color" content="#05070d">
+<meta name="theme-color" content="#0b0c0f">
 <title>NEXUS TV</title>
 <link rel="stylesheet" href="assets/css/nexus.css">
 <script src="assets/js/apps.js" defer></script>
@@ -18,54 +18,40 @@
 <div class="screen">
 
   <header class="topbar">
-    <div class="brand">
-      <div class="brand-mark" aria-hidden="true">N</div>
-      <div class="brand-name">NEXUS<span>TV</span></div>
-    </div>
-    <div class="greeting" id="greeting">Olá</div>
-    <div class="clock-block">
-      <div class="date" id="date"></div>
+    <div class="wordmark">NEXUS</div>
+    <div class="top-right">
+      <a class="icon-btn" href="diag/" id="btn-diag" aria-label="Diagnóstico do sistema" data-title="Diagnóstico"
+         data-blurb="Página de testes do navegador e do controle remoto.">⚙</a>
+      <button class="icon-btn" type="button" id="btn-reload" aria-label="Recarregar a interface" data-title="Recarregar"
+         data-blurb="Recarrega a NEXUS TV.">↻</button>
       <div class="clock" id="clock">--:--</div>
     </div>
   </header>
 
-  <main class="content">
-    <a class="hero" id="hero" href="#">
-      <div class="hero-text">
-        <div class="eyebrow">Em destaque</div>
-        <div class="hero-title" id="hero-title">NEXUS TV</div>
-        <div class="hero-blurb" id="hero-blurb"></div>
-        <div class="hero-cta"><span class="hero-open">Abrir</span><span class="hero-key" id="hero-key"></span></div>
-      </div>
-      <div class="hero-art" aria-hidden="true"><span id="hero-mono">N</span></div>
-    </a>
+  <section class="shelf" aria-live="polite">
+    <div class="shelf-title" id="shelf-title">Boa noite</div>
+    <div class="shelf-blurb" id="shelf-blurb">Escolha um app com o ponteiro ou aperte o número no controle.</div>
+    <div class="shelf-meta" id="shelf-meta"></div>
+  </section>
 
-    <section class="row">
-      <h2 class="row-title">Seus apps</h2>
-      <div class="cards" id="apps"></div>
-    </section>
+  <main class="grid" id="grid"></main>
 
-    <section class="row">
-      <h2 class="row-title">Atalhos</h2>
-      <div class="shortcuts" id="shortcuts">
-        <a class="tile tile-tool" href="diag/" id="tile-diag">
-          <span class="tile-mono">⚙</span><span class="tile-name">Diagnóstico</span>
-        </a>
-        <button class="tile tile-tool" type="button" id="tile-reload">
-          <span class="tile-mono">↻</span><span class="tile-name">Recarregar</span>
-        </button>
-      </div>
-    </section>
-  </main>
-
-  <footer class="hint">
-    Use o cursor e o <b>OK</b>, ou aperte o <b>número</b> do cartão no controle.
+  <footer class="note">
+    Os atalhos abrem os sites oficiais no navegador da TV. Reprodução de vídeo, DRM e alguns recursos podem não funcionar.
   </footer>
 
   <noscript><div class="noscript">O JavaScript está desativado: os cartões dependem dele para aparecer.</div></noscript>
 </div>
 
-<div class="opening" id="opening" aria-live="polite"></div>
+<div class="panel-backdrop" id="panel" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="panel-title">
+    <div class="panel-status" id="panel-status"></div>
+    <h2 class="panel-title" id="panel-title"></h2>
+    <div class="panel-body" id="panel-body"></div>
+    <button class="panel-close" type="button" id="panel-close">Fechar</button>
+  </div>
+</div>
+
 <div class="debug" id="debug" hidden></div>
 </body>
 </html>
