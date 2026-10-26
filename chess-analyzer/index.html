@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#111317">
+  <meta name="color-scheme" content="dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Analyzer">
+  <meta name="description" content="Análise de xadrez com Stockfish no próprio iPhone, offline.">
+  <title>Chess Analyzer</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="css/app.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <h1>Analyzer</h1>
+    <span id="mode-chip" class="chip">Tabuleiro</span>
+    <span id="net-chip" class="chip" hidden>Offline</span>
+    <span id="engine-chip" class="chip" aria-live="polite">Motor: carregando…</span>
+    <button id="btn-settings" class="icon-btn" type="button" aria-label="Ajustes">⚙︎</button>
+  </header>
+
+  <main>
+    <section class="evalbox" aria-label="Avaliação">
+      <div class="evalbar" aria-hidden="true"><div id="evalfill"></div></div>
+      <div class="evalrow">
+        <strong id="eval" class="eval">…</strong>
+        <span id="stats" class="stats"></span>
+      </div>
+    </section>
+
+    <div id="board"></div>
+    <p id="status" class="status" aria-live="polite"></p>
+
+    <ol id="lines" class="lines" aria-label="Variantes do motor"></ol>
+    <div id="movelist" class="movelist" aria-label="Lances da partida"></div>
+  </main>
+
+  <footer class="dock">
+    <div class="nav">
+      <button type="button" data-act="first" aria-label="Início">⏮︎</button>
+      <button type="button" data-act="back" aria-label="Voltar lance">◀︎</button>
+      <button type="button" data-act="forward" aria-label="Avançar lance">▶︎</button>
+      <button type="button" data-act="last" aria-label="Fim">⏭︎</button>
+      <button type="button" data-act="flip" aria-label="Girar tabuleiro">⇅</button>
+      <button type="button" data-act="pause" id="btn-pause" aria-label="Pausar análise" aria-pressed="false">⏸︎</button>
+    </div>
+    <div class="nav secondary">
+      <button type="button" data-act="reset">Reiniciar</button>
+      <button type="button" data-act="import">Importar</button>
+      <button type="button" data-act="train">Treino</button>
+      <button type="button" data-act="games">Partidas</button>
+      <label class="profile-select">
+        <span class="sr-only">Perfil de análise</span>
+        <select id="profile-quick" aria-label="Perfil de análise"></select>
+      </label>
+    </div>
+  </footer>
+
+  <!-- Importar -->
+  <dialog id="dlg-import">
+    <form method="dialog" class="sheet">
+      <h2>Importar PGN ou FEN</h2>
+      <textarea id="import-text" rows="7" placeholder="Cole aqui um PGN completo ou uma FEN" autocapitalize="off" autocomplete="off" spellcheck="false"></textarea>
+      <label class="file">Ou escolha um arquivo .pgn
+        <input id="import-file" type="file" accept=".pgn,.txt,text/plain,application/x-chess-pgn">
+      </label>
+      <p class="hint">Partidas de sites como chess.com ou lichess: depois que a partida <b>terminar</b>, use “Compartilhar → PGN”, copie e cole aqui.</p>
+      <p id="import-error" class="error" role="alert"></p>
+      <div class="row">
+        <button value="cancel" type="submit" class="ghost">Cancelar</button>
+        <button id="import-go" type="button" class="primary">Carregar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Treino -->
+  <dialog id="dlg-train">
+    <form method="dialog" class="sheet">
+      <h2>Treino contra o computador</h2>
+      <p class="hint">O adversário usa um <b>segundo motor</b>, enfraquecido de propósito. A força da análise (Ajustes → Perfil de análise) é independente e não muda com o nível do adversário.</p>
+      <fieldset>
+        <legend>Sua cor</legend>
+        <label><input type="radio" name="train-color" value="w" checked> Brancas</label>
+        <label><input type="radio" name="train-color" value="b"> Pretas</label>
+        <label><input type="radio" name="train-color" value="random"> Sorteio</label>
+      </fieldset>
+      <label>Nível do adversário
+        <select id="train-level"></select>
+      </label>
+      <div id="elo-box" hidden>
+        <label>Rating estimado: <output id="elo-out">1500</output>
+          <input id="train-elo" type="range" min="1320" max="3190" step="10" value="1500">
+        </label>
+        <p id="elo-disclaimer" class="hint"></p>
+      </div>
+      <label class="check"><input id="train-from-current" type="checkbox"> Começar da posição atual</label>
+      <label class="check"><input id="train-show" type="checkbox" checked> Mostrar análise durante o treino</label>
+      <div class="row">
+        <button value="cancel" type="submit" class="ghost">Cancelar</button>
+        <button id="train-stop" type="button" class="ghost" hidden>Encerrar treino</button>
+        <button id="train-go" type="button" class="primary">Começar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Partidas salvas -->
+  <dialog id="dlg-games">
+    <form method="dialog" class="sheet">
+      <h2>Partidas</h2>
+      <div class="row wrap">
+        <button id="game-save" type="button" class="primary">Salvar atual</button>
+        <button id="game-copy" type="button" class="ghost">Copiar PGN</button>
+        <button id="game-download" type="button" class="ghost">Baixar .pgn</button>
+      </div>
+      <p id="games-note" class="hint"></p>
+      <ul id="games-list" class="games"></ul>
+      <div class="row"><button value="close" type="submit" class="ghost">Fechar</button></div>
+    </form>
+  </dialog>
+
+  <!-- Ajustes -->
+  <dialog id="dlg-settings">
+    <form method="dialog" class="sheet">
+      <h2>Ajustes</h2>
+
+      <h3>Perfil de análise</h3>
+      <select id="profile-select" aria-label="Perfil de análise"></select>
+      <div class="grid2">
+        <label>Variantes <input id="p-multipv" type="number" min="1" max="3" inputmode="numeric"></label>
+        <label>Profundidade <input id="p-depth" type="number" min="4" max="40" inputmode="numeric"></label>
+        <label>Tempo máx. (ms) <input id="p-movetime" type="number" min="100" max="60000" step="100" inputmode="numeric"></label>
+        <label>Memória hash (MB) <input id="p-hash" type="number" min="8" max="256" step="8" inputmode="numeric"></label>
+      </div>
+      <p class="hint">O cálculo para no que vier primeiro: profundidade ou tempo. Mais tempo e memória = análise mais forte, mais bateria.</p>
+
+      <h3>Cores</h3>
+      <select id="palette-select" aria-label="Paleta de cores">
+        <option value="default">Padrão</option>
+        <option value="cvd">Daltonismo (Okabe–Ito)</option>
+        <option value="contrast">Alto contraste</option>
+        <option value="custom">Personalizada</option>
+      </select>
+      <div class="grid2 colors">
+        <label><span class="sw best">✓</span> Recomendado <input id="c-best" type="color"></label>
+        <label><span class="sw alt">!</span> Alternativa <input id="c-alt" type="color"></label>
+        <label><span class="sw dubious">?!</span> Inferior <input id="c-dubious" type="color"></label>
+        <label><span class="sw blunder">??</span> Erro <input id="c-blunder" type="color"></label>
+      </div>
+      <p class="hint">Cada classe também tem símbolo próprio (✓ ! ?! ??), então não depende só da cor.</p>
+      <label class="check"><input id="opt-arrows" type="checkbox" checked> Setas no tabuleiro</label>
+
+      <h3>Diagnóstico</h3>
+      <dl id="diag" class="diag"></dl>
+      <div class="row wrap">
+        <button id="engine-restart" type="button" class="ghost">Reiniciar motor</button>
+        <button id="cache-clear" type="button" class="ghost">Limpar cache</button>
+      </div>
+
+      <h3>Sobre</h3>
+      <p class="hint">Motor: Stockfish 19 (build “lite single-threaded” do projeto stockfish.js, GPL-3.0). Regras: chess.js (BSD-2). Tudo roda no aparelho; nenhuma posição é enviada para servidores. Veja <a href="LICENSES.md" target="_blank" rel="noopener">licenças</a>.</p>
+
+      <div class="row"><button value="close" type="submit" class="primary">Fechar</button></div>
+    </form>
+  </dialog>
+</body>
+</html>
