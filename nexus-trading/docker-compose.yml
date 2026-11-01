@@ -1,0 +1,57 @@
+# NEXUS AI TRADING - production stack (paper trading only)
+# Usage: cp .env.example .env  (fill it)  &&  docker compose up -d --build
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nexus
+      POSTGRES_USER: nexus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus -d nexus"]
+      interval: 10s
+      retries: 10
+
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://nexus:${POSTGRES_PASSWORD}@db:5432/nexus
+    depends_on: { db: { condition: service_healthy } }
+    expose: ["8000"]
+
+  worker:
+    build: .
+    restart: unless-stopped          # automatic recovery if the process dies
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://nexus:${POSTGRES_PASSWORD}@db:5432/nexus
+    command: ["python", "-m", "nexus.engine.worker"]
+    depends_on: { db: { condition: service_healthy } }
+    stop_grace_period: 30s
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes: [./backups:/backups, ./deploy/backup.sh:/backup.sh:ro]
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    depends_on: { db: { condition: service_healthy } }
+
+  caddy:                              # HTTPS (Let's Encrypt) in front of the API
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes: [./deploy/Caddyfile:/etc/caddy/Caddyfile:ro, caddy_data:/data]
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  caddy_data:

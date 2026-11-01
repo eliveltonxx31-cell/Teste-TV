@@ -1,0 +1,23 @@
+name: nexus-ci
+on:
+  push: { paths: ["nexus-trading/**", ".github/workflows/nexus-ci.yml"] }
+  pull_request: { paths: ["nexus-trading/**"] }
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: nexus-trading/backend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - run: pip install -r requirements.txt
+      - run: python -m pytest
+  frontend:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: nexus-trading/frontend } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
